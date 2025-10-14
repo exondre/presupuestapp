@@ -1,0 +1,7 @@
+{
+  "name": "PresupuestApp",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
