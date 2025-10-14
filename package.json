@@ -1,8 +1,8 @@
 {
   "name": "PresupuestApp",
+  "description": "An application for managing budgets.",
   "version": "0.0.1",
-  "author": "Ionic Framework",
-  "homepage": "https://ionicframework.com/",
+  "author": "Edixon Gutiérrez Mármol",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -20,6 +20,7 @@
     "@angular/forms": "^20.0.0",
     "@angular/platform-browser": "^20.0.0",
     "@angular/platform-browser-dynamic": "^20.0.0",
+    "@angular/service-worker": "^20.0.0",
     "@angular/router": "^20.0.0",
     "@capacitor/app": "7.1.0",
     "@capacitor/core": "7.4.3",
@@ -59,6 +60,5 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "typescript": "~5.8.0"
-  },
-  "description": "An Ionic project"
+  }
 }
