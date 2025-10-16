@@ -7,7 +7,6 @@ import {
   IonList,
   IonItemDivider,
   IonLabel,
-  IonAlert,
 } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -40,7 +39,6 @@ interface BalanceDayGroup {
     IonList,
     IonItemDivider,
     IonLabel,
-    IonAlert,
     BalanceExpenseItemComponent,
   ],
 })

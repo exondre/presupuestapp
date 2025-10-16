@@ -1,0 +1,88 @@
+.settings-content {
+  --background: var(--ion-color-light);
+}
+
+.settings-wrapper {
+  padding: 1.5rem 1rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.settings-list {
+  border-radius: 16px;
+  background: var(--ion-background-color, #fff);
+  box-shadow:
+    0 12px 24px rgba(16, 24, 40, 0.08),
+    0 4px 8px rgba(16, 24, 40, 0.06);
+  overflow: hidden;
+}
+
+.settings-item {
+  --inner-padding-end: 1rem;
+  --inner-padding-start: 1rem;
+  --padding-top: 0.75rem;
+  --padding-bottom: 0.75rem;
+  align-items: flex-start;
+  cursor: pointer;
+
+  & + & {
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+
+  ion-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+
+    h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--ion-color-medium);
+      line-height: 1.4;
+    }
+  }
+
+  &__icon {
+    font-size: 1.6rem;
+    color: var(--ion-color-primary);
+    margin-inline-end: 0.75rem;
+    align-self: flex-start;
+    margin-top: 0.15rem;
+  }
+
+  &:hover {
+    background: rgba(15, 23, 42, 0.03);
+  }
+}
+
+.settings-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+
+  p {
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  &__icon {
+    font-size: 1.1rem;
+    margin-top: 0.2rem;
+  }
+}
+
+.settings-file-input {
+  display: none;
+}

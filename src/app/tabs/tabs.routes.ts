@@ -17,9 +17,9 @@ export const routes: Routes = [
           import('../balance/balance.page').then((m) => m.BalancePage),
       },
       {
-        path: 'tab3',
+        path: 'settings',
         loadComponent: () =>
-          import('../tab3/tab3.page').then((m) => m.Tab3Page),
+          import('../settings/settings.page').then((m) => m.SettingsPage),
       },
       {
         path: '',

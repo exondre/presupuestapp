@@ -66,6 +66,26 @@ export class ExpensesService {
   }
 
   /**
+   * Replaces the current expense collection with the data provided in the import payload.
+   *
+   * @param rawData Data obtained from an import file.
+   */
+  importExpenses(rawData: unknown): void {
+    const importedExpenses = this.extractImportedExpenses(rawData);
+
+    const normalizedExpenses: ExpenseData[] = importedExpenses.map((expense) => {
+      const normalized = this.normalizeStoredExpense(expense);
+      if (!normalized) {
+        throw new Error('Invalid expense entry detected during import.');
+      }
+
+      return normalized.expense;
+    });
+
+    this.persistExpenses(normalizedExpenses);
+  }
+
+  /**
    * Retrieves an immutable snapshot of the current expense collection.
    *
    * @returns The current expenses stored in memory.
@@ -215,5 +235,42 @@ export class ExpensesService {
         .padStart(12, '0');
 
     return `${Date.now().toString(16)}-${segment()}`;
+  }
+
+  /**
+   * Extracts the expenses array from an import payload supporting multiple formats.
+   *
+   * @param rawData Data read from an import file.
+   * @returns Normalized raw expenses ready for further validation.
+   */
+  private extractImportedExpenses(rawData: unknown): StoredExpense[] {
+    if (Array.isArray(rawData)) {
+      this.ensureEveryEntryIsObject(rawData);
+      return rawData as StoredExpense[];
+    }
+
+    if (rawData && typeof rawData === 'object') {
+      const candidate = (rawData as { expenses?: unknown }).expenses;
+      if (Array.isArray(candidate)) {
+        this.ensureEveryEntryIsObject(candidate);
+        return candidate as StoredExpense[];
+      }
+    }
+
+    throw new Error('Invalid import payload.');
+  }
+
+  /**
+   * Validates that every element inside the provided array is an object.
+   *
+   * @param items Array to validate.
+   */
+  private ensureEveryEntryIsObject(items: unknown[]): void {
+    const hasInvalid = items.some(
+      (item) => item === null || typeof item !== 'object',
+    );
+    if (hasInvalid) {
+      throw new Error('Invalid expense entry detected during import.');
+    }
   }
 }
