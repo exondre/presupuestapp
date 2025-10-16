@@ -2,10 +2,6 @@
   display: block;
 }
 
-.balance-expense-item {
-  margin-bottom: 0.75rem;
-}
-
 .balance-item {
   --background: transparent;
   --padding-start: 0;
@@ -40,4 +36,22 @@
 
 ion-item-options {
   --background: transparent;
+}
+
+
+ion-icon {
+  margin-right: .75rem;
+  font-size: 24px;
+
+  &.expense {
+    color: var(--ion-text-color-step-400);
+    transform: rotate(45deg);
+  }
+
+  &.income {
+    color: rgb(var(--ion-color-income-rgb));
+    transform: rotate(-135deg);
+  }
+
+
 }

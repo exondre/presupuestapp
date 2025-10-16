@@ -9,7 +9,7 @@ import {
 } from '@ionic/angular/standalone';
 import { IonItemSliding as IonItemSlidingElement } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { createOutline, trashOutline } from 'ionicons/icons';
+import { createOutline, trashOutline, cashOutline, arrowUpCircleOutline } from 'ionicons/icons';
 
 /**
  * Represents the view model required to render an expense inside the balance list.
@@ -53,6 +53,7 @@ export class BalanceExpenseItemComponent {
     addIcons({
       'create-outline': createOutline,
       'trash-outline': trashOutline,
+      'arrow-up-circle-outline': arrowUpCircleOutline,
     });
   }
 

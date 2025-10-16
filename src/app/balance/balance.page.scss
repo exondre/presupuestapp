@@ -14,9 +14,14 @@
   padding: 1.5rem 1rem 3rem;
 }
 
+.balance-day-group {
+  margin-bottom: .85rem;
+  // padding-bottom: .85rem;
+}
+
 .balance-divider {
   background: var(--ion-item-background, var(--ion-background-color, #fff));
-  padding: 0 0 0.5rem;
+  padding: 0 0 0rem;
 
   &__label {
     font-size: 0.875rem;
