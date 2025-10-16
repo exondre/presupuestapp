@@ -1,4 +1,4 @@
-import { Component, ViewChild, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, input, output, computed } from '@angular/core';
 import {
   IonIcon,
   IonItem,
@@ -9,7 +9,7 @@ import {
 } from '@ionic/angular/standalone';
 import { IonItemSliding as IonItemSlidingElement } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { createOutline, trashOutline, cashOutline, arrowUpCircleOutline } from 'ionicons/icons';
+import { createOutline, trashOutline, arrowUpCircleOutline } from 'ionicons/icons';
 
 /**
  * Represents the view model required to render an expense inside the balance list.
@@ -38,18 +38,23 @@ export interface BalanceExpenseViewModel {
     IonItemOption,
     IonIcon,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BalanceExpenseItemComponent {
   @ViewChild(IonItemSlidingElement)
   private readonly slidingItem?: IonItemSlidingElement;
 
-  readonly expense = input.required<BalanceExpenseViewModel>();
+  readonly expenseSignal = input.required<BalanceExpenseViewModel>();
 
   readonly editRequested = output<void>();
 
   readonly deleteRequested = output<void>();
+  readonly deleteRequestedWithSwipe = output<void>();
+
+  readonly expense = computed(() => this.expenseSignal());
 
   constructor() {
+
     addIcons({
       'create-outline': createOutline,
       'trash-outline': trashOutline,
@@ -72,6 +77,17 @@ export class BalanceExpenseItemComponent {
   protected async handleDelete(): Promise<void> {
     await this.closeSliding();
     this.deleteRequested.emit();
+  }
+
+  /**
+   * Emits an event indicating that the delete action was requested
+   * via a swipe gesture and should not require confirmation.
+   *
+   * This is triggered by a swipe action.
+   */
+  protected async handleDeleteWithSwipe(): Promise<void> {
+    await this.closeSliding();
+    this.deleteRequestedWithSwipe.emit();
   }
 
   /**

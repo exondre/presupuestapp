@@ -17,7 +17,8 @@
     <ion-item-option color="medium" (click)="handleEdit()">
       <ion-icon slot="icon-only" name="create-outline"></ion-icon>
     </ion-item-option>
-    <ion-item-option color="danger" (click)="handleDelete()">
+    <ion-item-option color="danger" (click)="handleDelete()" (ionSwipe)="handleDeleteWithSwipe()">
+    <!-- <ion-item-option color="danger" (click)="handleDelete()" (ionSwipe)="handleDeleteWithSwipe()" expandable> -->
       <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
     </ion-item-option>
   </ion-item-options>

@@ -82,7 +82,12 @@ export class BalancePage {
    *
    * @param expenseId Identifier of the expense to remove.
    */
-  protected async handleDeleteExpense(expenseId: string): Promise<void> {
+  protected async handleDeleteExpense(expenseId: string, requireConfirmation: boolean = true): Promise<void> {
+    if (!requireConfirmation) {
+      this.expensesService.removeExpense(expenseId);
+      return;
+    }
+
     const alert = await this.alertController.create({
       header: '¿Eliminar gasto?',
       message: 'Esta acción eliminará el gasto de tu registro.',

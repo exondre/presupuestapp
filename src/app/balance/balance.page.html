@@ -23,9 +23,10 @@
           </ion-item-divider>
           @for (expense of group.expenses; track expense.id) {
             <app-balance-expense-item
-              [expense]="expense"
+              [expenseSignal]="expense"
               (editRequested)="handleEditExpense(expense.id)"
               (deleteRequested)="handleDeleteExpense(expense.id)"
+              (deleteRequestedWithSwipe)="handleDeleteExpense(expense.id, false)"
             ></app-balance-expense-item>
           }
         </ion-item-group>
