@@ -15,18 +15,20 @@
       </div>
     } @else {
       @for (group of groups(); track group.key) {
-        <ion-item-divider class="balance-divider">
-          <ion-label class="balance-divider__label">
-            {{ group.label }}
-          </ion-label>
-        </ion-item-divider>
-        @for (expense of group.expenses; track expense.id) {
-          <app-balance-expense-item
-            [expense]="expense"
-            (editRequested)="handleEditExpense(expense.id)"
-            (deleteRequested)="handleDeleteExpense(expense.id)"
-          ></app-balance-expense-item>
-        }
+        <ion-item-group>
+          <ion-item-divider class="balance-divider" sticky="true">
+            <ion-label class="balance-divider__label">
+              {{ group.label }}
+            </ion-label>
+          </ion-item-divider>
+          @for (expense of group.expenses; track expense.id) {
+            <app-balance-expense-item
+              [expense]="expense"
+              (editRequested)="handleEditExpense(expense.id)"
+              (deleteRequested)="handleDeleteExpense(expense.id)"
+            ></app-balance-expense-item>
+          }
+        </ion-item-group>
       }
     }
   </ion-list>

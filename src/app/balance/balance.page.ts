@@ -5,6 +5,7 @@ import {
   IonTitle,
   IonContent,
   IonList,
+  IonItemGroup,
   IonItemDivider,
   IonLabel,
 } from '@ionic/angular/standalone';
@@ -37,6 +38,7 @@ interface BalanceDayGroup {
     IonTitle,
     IonContent,
     IonList,
+    IonItemGroup,
     IonItemDivider,
     IonLabel,
     BalanceExpenseItemComponent,

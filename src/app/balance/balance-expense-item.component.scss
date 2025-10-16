@@ -25,6 +25,10 @@
     text-transform: capitalize;
     color: var(--ion-color-medium);
 
+    &::first-letter {
+      text-transform: uppercase;
+    }
+
     .balance-item__time {
       color: var(--ion-color-medium-tint);
       font-size: 0.675rem;

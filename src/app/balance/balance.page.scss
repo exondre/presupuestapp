@@ -15,7 +15,7 @@
 }
 
 .balance-divider {
-  --background: transparent;
+  background: var(--ion-item-background, var(--ion-background-color, #fff));
   padding: 0 0 0.5rem;
 
   &__label {
@@ -24,37 +24,6 @@
     letter-spacing: 0.03em;
     text-transform: lowercase;
     color: var(--ion-color-medium);
-  }
-}
-
-.balance-item {
-  --background: transparent;
-  --padding-start: 0;
-  --inner-padding-end: 0;
-  margin-bottom: 0.75rem;
-
-  &__amount {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ion-color-dark);
-  }
-
-  &__description {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.875rem;
-    color: var(--ion-color-medium);
-
-    &::first-letter {
-      text-transform: uppercase;
-    }
-
-    .balance-item__time {
-      color: var(--ion-color-medium-tint);
-      font-size: 0.675rem;
-      font-style: italic;
-    }
   }
 }
 
