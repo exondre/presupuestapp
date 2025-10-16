@@ -30,7 +30,7 @@ import {
 } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ExpenseData } from '../../models/expense-data.model';
+import { ExpenseCreation } from '../../models/expense-data.model';
 
 @Component({
   selector: 'app-new-expense-modal',
@@ -55,9 +55,15 @@ import { ExpenseData } from '../../models/expense-data.model';
   ],
 })
 export class NewExpenseModalComponent implements AfterViewInit {
-  protected readonly expenseSaved = output<ExpenseData>();
+  protected readonly expenseSaved = output<ExpenseCreation>();
 
   private readonly destroyRef = inject(DestroyRef);
+
+  private readonly formBuilder = inject(NonNullableFormBuilder);
+
+  private readonly alertController = inject(AlertController);
+
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   private readonly amountRequiredValidator: ValidatorFn = (control) => {
     const value = typeof control.value === 'string' ? control.value : '';
@@ -83,11 +89,7 @@ export class NewExpenseModalComponent implements AfterViewInit {
 
   private static readonly chileTimeZone = 'America/Santiago';
 
-  constructor(
-    private readonly formBuilder: NonNullableFormBuilder,
-    private readonly alertController: AlertController,
-    private readonly elementRef: ElementRef<HTMLElement>,
-  ) {
+  constructor() {
     this.setupAmountFormatter();
   }
 

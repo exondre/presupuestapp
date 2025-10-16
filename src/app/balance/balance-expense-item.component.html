@@ -1,0 +1,23 @@
+<ion-item-sliding class="balance-expense-item">
+  <ion-item class="balance-item" lines="none">
+    <ion-label>
+      <span class="balance-item__amount">
+        {{ expense().amountLabel }}
+      </span>
+      <span class="balance-item__description">
+        {{ expense().description }}
+        <span class="balance-item__time">
+          ({{ expense().timeLabel }})
+        </span>
+      </span>
+    </ion-label>
+  </ion-item>
+  <ion-item-options side="end">
+    <ion-item-option color="medium" (click)="handleEdit()">
+      <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+    </ion-item-option>
+    <ion-item-option color="danger" (click)="handleDelete()">
+      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+    </ion-item-option>
+  </ion-item-options>
+</ion-item-sliding>

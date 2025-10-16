@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+.balance-expense-item {
+  margin-bottom: 0.75rem;
+}
+
+.balance-item {
+  --background: transparent;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+
+  &__amount {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ion-color-dark);
+  }
+
+  &__description {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    text-transform: capitalize;
+    color: var(--ion-color-medium);
+
+    .balance-item__time {
+      color: var(--ion-color-medium-tint);
+      font-size: 0.675rem;
+      font-style: italic;
+      text-transform: none;
+    }
+  }
+}
+
+ion-item-options {
+  --background: transparent;
+}

@@ -1,30 +1,27 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import {
   IonHeader,
   IonToolbar,
   IonTitle,
   IonContent,
   IonList,
-  IonItem,
   IonItemDivider,
   IonLabel,
+  IonAlert,
 } from '@ionic/angular/standalone';
+import { AlertController } from '@ionic/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ExpenseData } from '../shared/models/expense-data.model';
 import { ExpensesService } from '../shared/services/expenses.service';
-
-interface BalanceExpenseItem {
-  id: string;
-  amountLabel: string;
-  description: string;
-  timeLabel: string;
-  timestamp: number;
-}
+import {
+  BalanceExpenseItemComponent,
+  BalanceExpenseViewModel,
+} from './balance-expense-item.component';
 
 interface BalanceDayGroup {
   key: string;
   label: string;
-  expenses: BalanceExpenseItem[];
+  expenses: BalanceExpenseViewModel[];
 }
 
 /**
@@ -41,9 +38,10 @@ interface BalanceDayGroup {
     IonTitle,
     IonContent,
     IonList,
-    IonItem,
     IonItemDivider,
     IonLabel,
+    IonAlert,
+    BalanceExpenseItemComponent,
   ],
 })
 export class BalancePage {
@@ -69,13 +67,51 @@ export class BalancePage {
     maximumFractionDigits: 0,
   });
 
+  private readonly expensesService = inject(ExpensesService);
+
+  private readonly alertController = inject(AlertController);
+
   private readonly expenses = toSignal(this.expensesService.expenses$, {
     initialValue: [],
   });
 
   protected readonly groups = computed(() => this.buildGroups(this.expenses()));
 
-  constructor(private readonly expensesService: ExpensesService) {}
+  /**
+   * Handles the deletion request triggered from the expense item.
+   *
+   * @param expenseId Identifier of the expense to remove.
+   */
+  protected async handleDeleteExpense(expenseId: string): Promise<void> {
+    const alert = await this.alertController.create({
+      header: '¿Eliminar gasto?',
+      message: 'Esta acción eliminará el gasto de tu registro.',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel',
+        },
+        {
+          text: 'Eliminar',
+          role: 'destructive',
+          handler: () => {
+            this.expensesService.removeExpense(expenseId);
+          },
+        },
+      ],
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * Placeholder for the upcoming edit functionality.
+   *
+   * @param expenseId Identifier of the expense to edit.
+   */
+  protected handleEditExpense(expenseId: string): void {
+    void expenseId;
+  }
 
   /**
    * Creates the balance groups ordered by day and expense recency.
@@ -91,13 +127,13 @@ export class BalancePage {
 
     const groups: BalanceDayGroup[] = [];
 
-    sorted.forEach((expense, index) => {
+    sorted.forEach((expense) => {
       const occurrenceDate = new Date(expense.date);
       const descriptor = this.createDayDescriptor(occurrenceDate);
       const targetGroup = this.ensureGroup(groups, descriptor);
 
       targetGroup.expenses.push({
-        id: `${descriptor.key}-${index}`,
+        id: expense.id,
         amountLabel: this.formatAmount(expense.amount),
         description: this.resolveDescription(expense.description),
         timeLabel: this.formatTime(occurrenceDate),

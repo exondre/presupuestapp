@@ -21,19 +21,11 @@
           </ion-label>
         </ion-item-divider>
         @for (expense of group.expenses; track expense.id) {
-          <ion-item class="balance-item">
-            <ion-label>
-              <span class="balance-item__amount">
-                {{ expense.amountLabel }}
-              </span>
-              <span class="balance-item__description">
-                {{ expense.description }}
-                <span class="balance-item__time">
-                  {{ expense.timeLabel }}
-                </span>
-              </span>
-            </ion-label>
-          </ion-item>
+          <app-balance-expense-item
+            [expense]="expense"
+            (editRequested)="handleEditExpense(expense.id)"
+            (deleteRequested)="handleDeleteExpense(expense.id)"
+          ></app-balance-expense-item>
         }
       }
     }
