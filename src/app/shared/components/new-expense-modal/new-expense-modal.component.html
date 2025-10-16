@@ -1,0 +1,65 @@
+<ion-modal
+  class="new-expense-modal"
+  [isOpen]="isOpen"
+  [presentingElement]="presentingElement"
+  [canDismiss]="canDismiss"
+  handleBehavior="cycle"
+  (didDismiss)="handleDidDismiss()"
+>
+  <ng-template>
+    <ion-header mode="ios" [translucent]="true">
+      <ion-toolbar>
+        <ion-title>Nuevo gasto</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" color="medium" (click)="close()">
+            Cerrar
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content mode="ios">
+      <div class="modal-content">
+        <form [formGroup]="form" (ngSubmit)="handleSave()">
+          <ion-list lines="full">
+            <ion-item>
+              <ion-label position="stacked">Monto</ion-label>
+              <ion-input
+                placeholder="Ingresa el monto"
+                formControlName="amount"
+                inputmode="numeric"
+                type="text"
+              ></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-label position="stacked">Descripción (opcional)</ion-label>
+              <ion-textarea
+                placeholder="Agrega una nota"
+                formControlName="description"
+                autoGrow="true"
+                rows="2"
+                maxlength="120"
+              ></ion-textarea>
+            </ion-item>
+            <ion-item class="datetime-item">
+              <ion-label position="stacked">Fecha y hora</ion-label>
+              <ion-datetime
+                presentation="date-time"
+                formControlName="date"
+                hourCycle="h23"
+                preferWheel="true"
+              ></ion-datetime>
+            </ion-item>
+          </ion-list>
+          <div class="form-actions">
+            <ion-button type="button" fill="clear" color="medium" (click)="close()">
+              Cancelar
+            </ion-button>
+            <ion-button type="submit" [disabled]="form.invalid">
+              Guardar
+            </ion-button>
+          </div>
+        </form>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

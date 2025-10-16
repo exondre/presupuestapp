@@ -16,7 +16,7 @@ export class TabsPage {
     addIcons({ homeOutline, statsChartOutline, cogOutline, home, statsChart, cog });
   }
 
-  selectedTab = 'tab1';
+  selectedTab = 'home';
 
   setSelectedTab(event: { tab: string }) {
     this.selectedTab = event.tab;

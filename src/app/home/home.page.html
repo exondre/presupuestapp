@@ -1,0 +1,25 @@
+<ion-content class="home-content" [fullscreen]="true" [scrollY]="false">
+  <div class="home-container">
+    <img
+      alt="Logotipo de PresupuestApp"
+      class="home-logo"
+      src="assets/icons/icon-1024.png"
+    />
+    <p class="app-name">PresupuestApp</p>
+  </div>
+  <div class="home-buttons">
+    <ion-button
+      expand="block"
+      fill="outline"
+      size="large"
+      (click)="newExpenseModal.open()"
+    >
+      Nuevo gasto
+    </ion-button>
+  </div>
+</ion-content>
+
+<app-new-expense-modal
+  #newExpenseModal
+  (expenseSaved)="handleExpenseSaved($event)"
+></app-new-expense-modal>

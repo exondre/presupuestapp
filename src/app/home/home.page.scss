@@ -1,0 +1,47 @@
+.home-content {
+  --padding-top: 10rem;
+  --padding-start: 24px;
+  --padding-end: 24px;
+  --padding-bottom: 32px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 2rem;
+  overflow-y: hidden;
+}
+
+.home-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.home-logo {
+  width: 200px;
+  max-width: 100%;
+  height: auto;
+}
+
+.app-name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ion-text-color, #1f1f1f);
+}
+
+.home-buttons {
+  width: 100%;
+  margin-top: 2rem;
+  max-width: 330px;
+  display: flex;
+  margin-inline: auto;
+}
+
+.home-buttons ion-button {
+  flex: 1;
+}
