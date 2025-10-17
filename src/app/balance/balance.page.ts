@@ -126,8 +126,8 @@ export class BalancePage {
     }
 
     const alert = await this.alertController.create({
-      header: '¿Eliminar gasto?',
-      message: 'Esta acción eliminará el gasto de tu registro.',
+      header: '¿Eliminar transacción?',
+      message: 'Esta acción eliminará la transacción de tu registro.',
       buttons: [
         {
           text: 'Cancelar',
@@ -180,6 +180,7 @@ export class BalancePage {
         description: this.resolveDescription(entry.description),
         timeLabel: this.formatTime(occurrenceDate),
         timestamp: occurrenceDate.getTime(),
+        type: entry.type,
       });
     });
 
@@ -292,7 +293,7 @@ export class BalancePage {
    */
   private resolveDescription(description: string | undefined): string {
     const trimmed = (description ?? '').trim();
-    return trimmed.length > 0 ? trimmed : 'gasto';
+    return trimmed.length > 0 ? trimmed : 'transacción';
   }
 
   /**

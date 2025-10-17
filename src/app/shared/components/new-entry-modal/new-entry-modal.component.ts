@@ -4,6 +4,7 @@ import {
   DestroyRef,
   ElementRef,
   inject,
+  input,
   output,
 } from '@angular/core';
 import {
@@ -27,10 +28,12 @@ import {
   IonInput,
   IonTextarea,
   IonDatetime,
+  IonSegment,
+  IonSegmentButton,
 } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EntryCreation } from '../../models/entry-data.model';
+import { EntryCreation, EntryType } from '../../models/entry-data.model';
 
 @Component({
   selector: 'app-new-entry-modal',
@@ -51,11 +54,15 @@ import { EntryCreation } from '../../models/entry-data.model';
     IonInput,
     IonTextarea,
     IonDatetime,
+    IonSegment,
+    IonSegmentButton,
     ReactiveFormsModule,
   ],
 })
 export class NewEntryModalComponent implements AfterViewInit {
   protected readonly entrySaved = output<EntryCreation>();
+  protected readonly entryType = EntryType;
+  readonly presetType = input<EntryType | null>(null);
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -71,10 +78,18 @@ export class NewEntryModalComponent implements AfterViewInit {
     return digits.length > 0 && digits !== '0' ? null : { required: true };
   };
 
+  private currentPresetType: EntryType | null = null;
+  private manualPresetType: EntryType | null = null;
+
+  protected isTypeSelectorVisible = true;
+
+  protected modalTitle = 'Nueva transacción';
+
   protected readonly form = this.formBuilder.group({
     amount: ['', [this.amountRequiredValidator]],
     description: [''],
     date: [this.createCurrentChileIsoDate(), [Validators.required]],
+    type: [EntryType.EXPENSE, [Validators.required]],
   });
 
   protected isOpen = false;
@@ -94,6 +109,15 @@ export class NewEntryModalComponent implements AfterViewInit {
   }
 
   /**
+   * Applies the preset entry type before opening the modal.
+   *
+   * @param type Entry type to preset or null to allow user selection.
+   */
+  setPresetType(type: EntryType | null): void {
+    this.manualPresetType = type;
+  }
+
+  /**
    * Determines the presenting element so the modal behaves as a card modal.
    */
   ngAfterViewInit(): void {
@@ -107,9 +131,31 @@ export class NewEntryModalComponent implements AfterViewInit {
    * Opens the modal and prepares the form for user input.
    */
   open(): void {
+    const inputPreset = this.presetType();
+    const presetType = inputPreset ?? this.manualPresetType;
+    this.manualPresetType = null;
+    this.currentPresetType = presetType ?? null;
+    this.isTypeSelectorVisible = this.currentPresetType === null;
+    this.modalTitle = this.buildModalTitle(this.currentPresetType);
     this.resetForm();
     this.hasSavedCurrentForm = false;
     this.isOpen = true;
+  }
+
+  /**
+   * Resolves the modal title depending on the preset entry type.
+   *
+   * @param presetType Entry type provided before opening the modal.
+   * @returns The localized title for the modal header.
+   */
+  private buildModalTitle(presetType: EntryType | null): string {
+    if (presetType === EntryType.EXPENSE) {
+      return 'Nuevo gasto';
+    }
+    if (presetType === EntryType.INCOME) {
+      return 'Nuevo ingreso';
+    }
+    return 'Nueva transacción';
   }
 
   /**
@@ -134,8 +180,9 @@ export class NewEntryModalComponent implements AfterViewInit {
       return;
     }
 
-    const { amount, description, date } = this.form.getRawValue();
+    const { amount, description, date, type } = this.form.getRawValue();
     const parsedAmount = this.parseAmount(amount);
+    const normalizedType = this.normalizeFormType(type);
     this.hasSavedCurrentForm = true;
     this.prepareToBypassDismissGuard();
     this.isOpen = false;
@@ -144,6 +191,7 @@ export class NewEntryModalComponent implements AfterViewInit {
       amount: parsedAmount,
       date: this.normalizeDateToUtcIso(date),
       description: this.normalizeDescription(description),
+      type: normalizedType,
     });
   }
 
@@ -284,11 +332,21 @@ export class NewEntryModalComponent implements AfterViewInit {
         amount: '',
         description: '',
         date: this.createCurrentChileIsoDate(),
+        type: this.determineInitialType(),
       },
       { emitEvent: false },
     );
     this.form.markAsPristine();
     this.form.markAsUntouched();
+  }
+
+  /**
+   * Determines the initial entry type that should populate the form.
+   *
+   * @returns The entry type to display when the modal opens.
+   */
+  private determineInitialType(): EntryType {
+    return this.currentPresetType ?? EntryType.EXPENSE;
   }
 
   /**
@@ -362,6 +420,28 @@ export class NewEntryModalComponent implements AfterViewInit {
   private normalizeDescription(description: string): string | undefined {
     const trimmed = (description ?? '').trim();
     return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  /**
+   * Normalizes the type selected in the form ensuring it matches one of the supported values.
+   *
+   * @param value Type value captured from the form.
+   * @returns A normalized entry type.
+   */
+  private normalizeFormType(
+    value: string | EntryType | null | undefined,
+  ): EntryType {
+    if (value === EntryType.EXPENSE || value === EntryType.INCOME) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      return value.toUpperCase() === EntryType.INCOME
+        ? EntryType.INCOME
+        : EntryType.EXPENSE;
+    }
+
+    return EntryType.EXPENSE;
   }
 
   /**

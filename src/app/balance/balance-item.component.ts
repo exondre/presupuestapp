@@ -10,6 +10,7 @@ import {
 import { IonItemSliding as IonItemSlidingElement } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { createOutline, trashOutline, arrowUpCircleOutline } from 'ionicons/icons';
+import { EntryType } from '../shared/models/entry-data.model';
 
 /**
  * Represents the view model required to render an entry inside the balance list.
@@ -20,6 +21,7 @@ export interface BalanceItemViewModel {
   description: string;
   timeLabel: string;
   timestamp: number;
+  type: EntryType;
 }
 
 /**
@@ -45,6 +47,7 @@ export class BalanceItemComponent {
   private readonly slidingItem?: IonItemSlidingElement;
 
   readonly itemSignal = input.required<BalanceItemViewModel>();
+  protected readonly entryType = EntryType;
 
   readonly editRequested = output<void>();
 

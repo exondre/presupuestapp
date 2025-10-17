@@ -9,7 +9,7 @@
   <ng-template>
     <ion-header mode="ios" [translucent]="true">
       <ion-toolbar>
-        <ion-title>Nuevo gasto</ion-title>
+        <ion-title>{{ modalTitle }}</ion-title>
         <ion-buttons slot="end">
           <ion-button fill="clear" color="medium" (click)="close()">
             Cerrar
@@ -21,6 +21,19 @@
       <div class="modal-content">
         <form [formGroup]="form" (ngSubmit)="handleSave()">
           <ion-list lines="full">
+            @if (isTypeSelectorVisible) {
+              <ion-item>
+                <ion-label position="stacked">Tipo de transacción</ion-label>
+                <ion-segment formControlName="type">
+                  <ion-segment-button [value]="entryType.EXPENSE">
+                    <ion-label>Gasto</ion-label>
+                  </ion-segment-button>
+                  <ion-segment-button [value]="entryType.INCOME">
+                    <ion-label>Ingreso</ion-label>
+                  </ion-segment-button>
+                </ion-segment>
+              </ion-item>
+            }
             <ion-item>
               <ion-label position="stacked">Monto</ion-label>
               <ion-input

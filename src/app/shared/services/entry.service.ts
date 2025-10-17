@@ -1,12 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { EntryCreation, EntryData } from '../models/entry-data.model';
+import { EntryCreation, EntryData, EntryType } from '../models/entry-data.model';
 import { LocalStorageService } from './local-storage.service';
 
 type StoredEntry = Partial<EntryData> & {
   amount?: number;
   date?: string;
   description?: string;
+  type?: EntryType | string;
 };
 
 /**
@@ -34,19 +35,22 @@ export class EntryService {
   readonly entries$ = this.entriesSubject.asObservable();
 
   /**
-   * Calculates the total amount of entries for the month that contains the reference date.
+   * Calculates the total amount of expense entries for the month that contains the reference date.
    *
    * @param entries Entries to evaluate.
    * @param referenceDate Date used to determine the target month.
-   * @returns The aggregated amount for the specified month.
+   * @returns The aggregated amount for the specified month considering only expenses.
    */
   calculateMonthlyTotal(
     entries: EntryData[],
     referenceDate: Date = new Date(),
   ): number {
     const referenceKey = this.buildMonthKey(referenceDate);
+    const expenseEntries = entries.filter(
+      (entry) => entry.type === EntryType.EXPENSE,
+    );
 
-    return entries.reduce((total, entry) => {
+    return expenseEntries.reduce((total, entry) => {
       const occurrenceDate = new Date(entry.date);
       if (Number.isNaN(occurrenceDate.getTime())) {
         return total;
@@ -65,11 +69,13 @@ export class EntryService {
    * @param entry Entry data to store.
    */
   addEntry(entry: EntryCreation): void {
+    const { type } = this.normalizeType(entry.type);
     const newEntry: EntryData = {
       id: this.generateId(),
       amount: entry.amount,
       date: entry.date,
       description: entry.description,
+      type,
     };
 
     const updatedEntries = [...this.entriesSubject.value, newEntry];
@@ -211,13 +217,17 @@ export class EntryService {
         : '';
     const description =
       rawDescription.length > 0 ? rawDescription : undefined;
+    const { type, requiresSync: typeRequiresSync } = this.normalizeType(
+      entry.type,
+    );
 
     const id =
       typeof entry.id === 'string' && entry.id.trim().length > 0
         ? entry.id
         : this.generateId();
 
-    const requiresSync = dateRequiresSync || id !== entry.id;
+    const requiresSync =
+      dateRequiresSync || id !== entry.id || typeRequiresSync;
 
     return {
       entry: {
@@ -225,6 +235,7 @@ export class EntryService {
         amount,
         date: normalizedDate,
         description,
+        type,
       },
       requiresSync,
     };
@@ -262,6 +273,39 @@ export class EntryService {
     }
 
     return { normalizedDate: new Date().toISOString(), requiresSync: true };
+  }
+
+  /**
+   * Normalizes the type ensuring it matches one of the supported values.
+   *
+   * @param value Entry type retrieved from storage or provided by the caller.
+   * @returns The normalized type and whether a fix was applied.
+   */
+  private normalizeType(
+    value: unknown,
+  ): { type: EntryType; requiresSync: boolean } {
+    if (value === EntryType.EXPENSE || value === EntryType.INCOME) {
+      return { type: value, requiresSync: false };
+    }
+
+    if (typeof value === 'string') {
+      const upperCased = value.toUpperCase();
+      if (upperCased === EntryType.EXPENSE) {
+        return {
+          type: EntryType.EXPENSE,
+          requiresSync: value !== EntryType.EXPENSE,
+        };
+      }
+
+      if (upperCased === EntryType.INCOME) {
+        return {
+          type: EntryType.INCOME,
+          requiresSync: value !== EntryType.INCOME,
+        };
+      }
+    }
+
+    return { type: EntryType.EXPENSE, requiresSync: true };
   }
 
   /**

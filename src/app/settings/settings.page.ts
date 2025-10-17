@@ -80,7 +80,7 @@ export class SettingsPage {
       const alert = await this.alertController.create({
         header: 'Sobrescribir datos',
         message:
-          'Ya existen gastos almacenados. Si continúas se reemplazarán por el contenido del archivo.',
+          'Ya existen transacciones almacenadas. Si continúas se reemplazarán por el contenido del archivo.',
         buttons: [
           {
             text: 'Cancelar',
@@ -108,7 +108,7 @@ export class SettingsPage {
    */
   protected async handleExport(): Promise<void> {
     try {
-      await this.withLoader('Exportando gastos…', async () => {
+      await this.withLoader('Exportando transacciones…', async () => {
         const entries = this.entryService.getEntriesSnapshot();
         this.downloadEntries(entries);
       });
@@ -136,7 +136,7 @@ export class SettingsPage {
     }
 
     try {
-      await this.withLoader('Importando gastos…', async () => {
+      await this.withLoader('Importando transacciones…', async () => {
         const fileContent = await file.text();
         const parsedData = JSON.parse(fileContent) as unknown;
         this.entryService.importEntries(parsedData);
@@ -216,7 +216,7 @@ export class SettingsPage {
 
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `presupuestapp-gastos-${timestamp}.json`;
+    anchor.download = `presupuestapp-transacciones-${timestamp}.json`;
     anchor.rel = 'noopener';
 
     anchor.click();

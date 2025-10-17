@@ -15,6 +15,11 @@ ion-modal.new-entry-modal {
   overflow: visible;
 }
 
+.modal-content ion-segment {
+  width: 100%;
+  margin-top: 8px;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
