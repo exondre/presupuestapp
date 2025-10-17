@@ -5,6 +5,30 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="balance-content">
+  @let summary = currentMonthSummary();
+  <ion-card class="balance-summary-card">
+    <ion-card-header class="balance-summary-card__header">
+      <ion-card-title class="balance-summary-card__title">
+        {{ summary.totalLabel }}
+      </ion-card-title>
+      <ion-card-subtitle class="balance-summary-card__subtitle">
+        Total de gastos
+        @if (summary.subtitle) {
+          de
+          <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
+        }
+      </ion-card-subtitle>
+    </ion-card-header>
+    <ion-card-content class="balance-summary-card__content">
+      <ion-icon
+        name="information-circle-outline"
+        aria-hidden="true"
+        class="balance-summary-card__icon"
+      ></ion-icon>
+      <span>Esto es lo que llevas gastado el mes actual.</span>
+    </ion-card-content>
+  </ion-card>
+
   <ion-list lines="none" class="balance-list">
     @if (groups().length === 0) {
       <div class="empty-state">

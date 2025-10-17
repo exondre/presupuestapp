@@ -1,5 +1,6 @@
 .balance-content {
-  --background: var(--ion-color-light);
+  // --background: var(--ion-color-light);
+  background: var(--ion-item-background, var(--ion-background-color, #fff));
 }
 
 .balance-content::part(scroll) {
@@ -7,11 +8,56 @@
   flex-direction: column;
 }
 
+.balance-summary-card {
+  margin: 1.25rem 1rem 0;
+  flex: 0 0 auto;
+
+  &__header {
+    // margin-bottom: ;
+    padding-bottom: 5px;
+  }
+
+  &__title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--ion-color-dark);
+  }
+
+  &__subtitle {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--ion-color-medium);
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+
+    &--highlight {
+      font-weight: 600;
+      color: var(--ion-color-primary);
+    }
+  }
+
+  &__content {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.65rem;
+    color: var(--ion-color-medium);
+  }
+
+  &__icon {
+    font-size: 1rem;
+    color: var(--ion-color-primary);
+  }
+}
+
 .balance-list {
+  margin-top: 15px;
+  background: transparent;
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1rem 1rem 3rem;
+  padding: 0rem 1rem 3rem;
 }
 
 .balance-day-group {
@@ -20,7 +66,9 @@
 }
 
 .balance-divider {
-  background: var(--ion-item-background, var(--ion-background-color, #fff));
+  // background: var(--ion-item-background, var(--ion-background-color, #fff));
+  // background: var(--ion-color-light);
+  background: transparent;
   padding: 0 0 0rem;
 
   &__label {

@@ -21,14 +21,46 @@ type StoredExpense = Partial<ExpenseData> & {
 })
 export class ExpensesService {
   private static readonly storageKey = 'presupuestapp:expenses';
+  private static readonly chileTimeZone = 'America/Santiago';
 
   private readonly localStorageService = inject(LocalStorageService);
 
   private readonly expensesSubject = new BehaviorSubject<ExpenseData[]>(
     this.restoreExpensesFromStorage(),
   );
+  private readonly monthKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ExpensesService.chileTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+  });
 
   readonly expenses$ = this.expensesSubject.asObservable();
+
+  /**
+   * Calculates the total amount of expenses for the month that contains the reference date.
+   *
+   * @param expenses Expenses to evaluate.
+   * @param referenceDate Date used to determine the target month.
+   * @returns The aggregated amount for the specified month.
+   */
+  calculateMonthlyTotal(
+    expenses: ExpenseData[],
+    referenceDate: Date = new Date(),
+  ): number {
+    const referenceKey = this.buildMonthKey(referenceDate);
+
+    return expenses.reduce((total, expense) => {
+      const occurrenceDate = new Date(expense.date);
+      if (Number.isNaN(occurrenceDate.getTime())) {
+        return total;
+      }
+
+      const matchesReferenceMonth =
+        this.buildMonthKey(occurrenceDate) === referenceKey;
+
+      return matchesReferenceMonth ? total + expense.amount : total;
+    }, 0);
+  }
 
   /**
    * Adds a new expense to the in-memory collection and persists it.
@@ -102,6 +134,23 @@ export class ExpensesService {
   private persistExpenses(expenses: ExpenseData[]): void {
     this.expensesSubject.next(expenses);
     this.localStorageService.setItem(ExpensesService.storageKey, expenses);
+  }
+
+  /**
+   * Generates the month key for the provided date using Chile's timezone.
+   *
+   * @param date Date used to create the month key.
+   * @returns A YYYY-MM string that identifies the month.
+   */
+  private buildMonthKey(date: Date): string {
+    const parts = new Map(
+      this.monthKeyFormatter
+        .formatToParts(date)
+        .map((part) => [part.type, part.value]),
+    );
+    const year = parts.get('year') ?? '0000';
+    const month = parts.get('month') ?? '01';
+    return `${year}-${month}`;
   }
 
   /**

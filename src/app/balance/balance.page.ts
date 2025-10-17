@@ -8,6 +8,12 @@ import {
   IonItemGroup,
   IonItemDivider,
   IonLabel,
+  IonCard,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardSubtitle,
+  IonCardContent,
+  IonIcon,
 } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -17,6 +23,8 @@ import {
   BalanceExpenseItemComponent,
   BalanceExpenseViewModel,
 } from './balance-expense-item.component';
+import { addIcons } from 'ionicons';
+import { informationCircleOutline } from 'ionicons/icons';
 
 interface BalanceDayGroup {
   key: string;
@@ -41,6 +49,12 @@ interface BalanceDayGroup {
     IonItemGroup,
     IonItemDivider,
     IonLabel,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
+    IonCardSubtitle,
+    IonCardContent,
+    IonIcon,
     BalanceExpenseItemComponent,
   ],
 })
@@ -66,6 +80,11 @@ export class BalancePage {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
+  private readonly monthLabelFormatter = new Intl.DateTimeFormat('es-CL', {
+    timeZone: BalancePage.chileTimeZone,
+    month: 'long',
+    year: 'numeric',
+  });
 
   private readonly expensesService = inject(ExpensesService);
 
@@ -76,6 +95,24 @@ export class BalancePage {
   });
 
   protected readonly groups = computed(() => this.buildGroups(this.expenses()));
+  protected readonly currentMonthSummary = computed(() => {
+    const today = new Date();
+    const total = this.expensesService.calculateMonthlyTotal(
+      this.expenses(),
+      today,
+    );
+
+    return {
+      totalLabel: this.formatAmount(total),
+      subtitle: this.buildMonthSubtitle(today),
+    };
+  });
+
+  constructor() {
+    addIcons({
+      'information-circle-outline': informationCircleOutline,
+    });
+  }
 
   /**
    * Handles the deletion request triggered from the expense item.
@@ -256,5 +293,27 @@ export class BalancePage {
   private resolveDescription(description: string | undefined): string {
     const trimmed = (description ?? '').trim();
     return trimmed.length > 0 ? trimmed : 'gasto';
+  }
+
+  /**
+   * Creates the subtitle shown in the monthly summary card using the current month and year.
+   *
+   * @param date Date used to obtain the month descriptor.
+   * @returns The subtitle describing the month and year.
+   */
+  private buildMonthSubtitle(date: Date): string {
+    const parts = new Map(
+      this.monthLabelFormatter
+        .formatToParts(date)
+        .map((part) => [part.type, part.value]),
+    );
+    const month = parts.get('month') ?? '';
+    const year = parts.get('year') ?? '';
+    const monthDescriptor =
+      month.length > 0 ? `${month} ${year}`.trim() : year;
+
+    return monthDescriptor.length > 0
+      ? `${monthDescriptor}`
+      : '';
   }
 }
