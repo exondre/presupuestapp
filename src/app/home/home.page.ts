@@ -1,24 +1,24 @@
 import { Component, inject } from '@angular/core';
 import { IonContent, IonButton } from '@ionic/angular/standalone';
-import { NewExpenseModalComponent } from '../shared/components/new-expense-modal/new-expense-modal.component';
-import { ExpenseCreation } from '../shared/models/expense-data.model';
-import { ExpensesService } from '../shared/services/expenses.service';
+import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
+import { EntryCreation } from '../shared/models/entry-data.model';
+import { EntryService } from '../shared/services/entry.service';
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
-  imports: [IonContent, IonButton, NewExpenseModalComponent],
+  imports: [IonContent, IonButton, NewEntryModalComponent],
 })
 export class HomePage {
-  private readonly expensesService = inject(ExpensesService);
+  private readonly entryService = inject(EntryService);
 
   /**
-   * Receives the data emitted when a new expense has been saved.
+   * Receives the data emitted when a new entry has been saved.
    *
-   * @param expense Expense data captured through the modal.
+   * @param entry Entry data captured through the modal.
    */
-  protected handleExpenseSaved(expense: ExpenseCreation): void {
-    this.expensesService.addExpense(expense);
+  protected handleEntrySaved(entry: EntryCreation): void {
+    this.entryService.addEntry(entry);
   }
 }

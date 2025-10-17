@@ -45,13 +45,13 @@
               {{ group.label }}
             </ion-label>
           </ion-item-divider>
-          @for (expense of group.expenses; track expense.id) {
-            <app-balance-expense-item
-              [expenseSignal]="expense"
-              (editRequested)="handleEditExpense(expense.id)"
-              (deleteRequested)="handleDeleteExpense(expense.id)"
-              (deleteRequestedWithSwipe)="handleDeleteExpense(expense.id, false)"
-            ></app-balance-expense-item>
+          @for (item of group.items; track item.id) {
+            <app-balance-item
+              [itemSignal]="item"
+              (editRequested)="handleEditEntry(item.id)"
+              (deleteRequested)="handleDeleteEntry(item.id)"
+              (deleteRequestedWithSwipe)="handleDeleteEntry(item.id, false)"
+            ></app-balance-item>
           }
         </ion-item-group>
       }

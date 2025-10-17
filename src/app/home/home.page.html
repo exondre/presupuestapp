@@ -12,14 +12,14 @@
       expand="block"
       fill="outline"
       size="large"
-      (click)="newExpenseModal.open()"
+      (click)="newEntryModal.open()"
     >
       Nuevo gasto
     </ion-button>
   </div>
 </ion-content>
 
-<app-new-expense-modal
-  #newExpenseModal
-  (expenseSaved)="handleExpenseSaved($event)"
-></app-new-expense-modal>
+<app-new-entry-modal
+  #newEntryModal
+  (entrySaved)="handleEntrySaved($event)"
+></app-new-entry-modal>

@@ -1,14 +1,14 @@
-<ion-item-sliding class="balance-expense-item">
+<ion-item-sliding class="balance-entry-item">
   <ion-item class="balance-item" lines="none">
     <ion-icon name="arrow-up-circle-outline" class="expense"></ion-icon>
     <ion-label>
       <span class="balance-item__amount">
-        {{ expense().amountLabel }}
+        {{ item().amountLabel }}
       </span>
       <span class="balance-item__description">
-        {{ expense().description }}
+        {{ item().description }}
         <span class="balance-item__time">
-          ({{ expense().timeLabel }})
+          ({{ item().timeLabel }})
         </span>
       </span>
     </ion-label>

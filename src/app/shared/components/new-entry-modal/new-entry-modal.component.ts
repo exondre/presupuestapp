@@ -30,13 +30,13 @@ import {
 } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ExpenseCreation } from '../../models/expense-data.model';
+import { EntryCreation } from '../../models/entry-data.model';
 
 @Component({
-  selector: 'app-new-expense-modal',
+  selector: 'app-new-entry-modal',
   standalone: true,
-  templateUrl: './new-expense-modal.component.html',
-  styleUrls: ['./new-expense-modal.component.scss'],
+  templateUrl: './new-entry-modal.component.html',
+  styleUrls: ['./new-entry-modal.component.scss'],
   imports: [
     IonModal,
     IonHeader,
@@ -54,8 +54,8 @@ import { ExpenseCreation } from '../../models/expense-data.model';
     ReactiveFormsModule,
   ],
 })
-export class NewExpenseModalComponent implements AfterViewInit {
-  protected readonly expenseSaved = output<ExpenseCreation>();
+export class NewEntryModalComponent implements AfterViewInit {
+  protected readonly entrySaved = output<EntryCreation>();
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -126,7 +126,7 @@ export class NewExpenseModalComponent implements AfterViewInit {
   }
 
   /**
-   * Handles the save action by emitting the expense data once validation succeeds.
+   * Handles the save action by emitting the entry data once validation succeeds.
    */
   protected handleSave(): void {
     if (this.form.invalid) {
@@ -140,7 +140,7 @@ export class NewExpenseModalComponent implements AfterViewInit {
     this.prepareToBypassDismissGuard();
     this.isOpen = false;
 
-    this.expenseSaved.emit({
+    this.entrySaved.emit({
       amount: parsedAmount,
       date: this.normalizeDateToUtcIso(date),
       description: this.normalizeDescription(description),
@@ -223,7 +223,7 @@ export class NewExpenseModalComponent implements AfterViewInit {
     second: string;
   } {
     const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: NewExpenseModalComponent.chileTimeZone,
+      timeZone: NewEntryModalComponent.chileTimeZone,
       hour12: false,
       year: 'numeric',
       month: '2-digit',
@@ -254,7 +254,7 @@ export class NewExpenseModalComponent implements AfterViewInit {
    */
   private resolveChileOffset(date: Date): string {
     const formatter = new Intl.DateTimeFormat('en', {
-      timeZone: NewExpenseModalComponent.chileTimeZone,
+      timeZone: NewEntryModalComponent.chileTimeZone,
       timeZoneName: 'shortOffset',
     });
 
@@ -436,7 +436,7 @@ export class NewExpenseModalComponent implements AfterViewInit {
    * Converts the formatted amount into an integer value.
    *
    * @param value Amount value captured from the form.
-   * @returns A whole number representing the expense amount.
+   * @returns A whole number representing the entry amount.
    */
   private parseAmount(value: string): number {
     const normalized = this.normalizeDigits(this.sanitizeAmount(value));

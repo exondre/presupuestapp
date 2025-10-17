@@ -17,23 +17,23 @@ import {
 } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ExpenseData } from '../shared/models/expense-data.model';
-import { ExpensesService } from '../shared/services/expenses.service';
+import { EntryData } from '../shared/models/entry-data.model';
+import { EntryService } from '../shared/services/entry.service';
 import {
-  BalanceExpenseItemComponent,
-  BalanceExpenseViewModel,
-} from './balance-expense-item.component';
+  BalanceItemComponent,
+  BalanceItemViewModel,
+} from './balance-item.component';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline } from 'ionicons/icons';
 
 interface BalanceDayGroup {
   key: string;
   label: string;
-  expenses: BalanceExpenseViewModel[];
+  items: BalanceItemViewModel[];
 }
 
 /**
- * Displays the balance sheet with the expenses grouped by day using Chile's timezone.
+ * Displays the balance sheet with the entries grouped by day using Chile's timezone.
  */
 @Component({
   selector: 'app-balance',
@@ -55,7 +55,7 @@ interface BalanceDayGroup {
     IonCardSubtitle,
     IonCardContent,
     IonIcon,
-    BalanceExpenseItemComponent,
+    BalanceItemComponent,
   ],
 })
 export class BalancePage {
@@ -86,19 +86,19 @@ export class BalancePage {
     year: 'numeric',
   });
 
-  private readonly expensesService = inject(ExpensesService);
+  private readonly entryService = inject(EntryService);
 
   private readonly alertController = inject(AlertController);
 
-  private readonly expenses = toSignal(this.expensesService.expenses$, {
+  private readonly entries = toSignal(this.entryService.entries$, {
     initialValue: [],
   });
 
-  protected readonly groups = computed(() => this.buildGroups(this.expenses()));
+  protected readonly groups = computed(() => this.buildGroups(this.entries()));
   protected readonly currentMonthSummary = computed(() => {
     const today = new Date();
-    const total = this.expensesService.calculateMonthlyTotal(
-      this.expenses(),
+    const total = this.entryService.calculateMonthlyTotal(
+      this.entries(),
       today,
     );
 
@@ -115,13 +115,13 @@ export class BalancePage {
   }
 
   /**
-   * Handles the deletion request triggered from the expense item.
+   * Handles the deletion request triggered from the entry item.
    *
-   * @param expenseId Identifier of the expense to remove.
+   * @param entryId Identifier of the entry to remove.
    */
-  protected async handleDeleteExpense(expenseId: string, requireConfirmation: boolean = true): Promise<void> {
+  protected async handleDeleteEntry(entryId: string, requireConfirmation: boolean = true): Promise<void> {
     if (!requireConfirmation) {
-      this.expensesService.removeExpense(expenseId);
+      this.entryService.removeEntry(entryId);
       return;
     }
 
@@ -137,7 +137,7 @@ export class BalancePage {
           text: 'Eliminar',
           role: 'destructive',
           handler: () => {
-            this.expensesService.removeExpense(expenseId);
+            this.entryService.removeEntry(entryId);
           },
         },
       ],
@@ -149,35 +149,35 @@ export class BalancePage {
   /**
    * Placeholder for the upcoming edit functionality.
    *
-   * @param expenseId Identifier of the expense to edit.
+   * @param entryId Identifier of the entry to edit.
    */
-  protected handleEditExpense(expenseId: string): void {
-    void expenseId;
+  protected handleEditEntry(entryId: string): void {
+    void entryId;
   }
 
   /**
-   * Creates the balance groups ordered by day and expense recency.
+   * Creates the balance groups ordered by day and entry recency.
    *
-   * @param expenses Expenses retrieved from the store.
-   * @returns The expenses grouped by day.
+   * @param entries Entries retrieved from the store.
+   * @returns The entries grouped by day.
    */
-  private buildGroups(expenses: ExpenseData[]): BalanceDayGroup[] {
-    const sorted = [...expenses].sort(
+  private buildGroups(entries: EntryData[]): BalanceDayGroup[] {
+    const sorted = [...entries].sort(
       (a, b) =>
         this.normalizeToMillis(b.date) - this.normalizeToMillis(a.date),
     );
 
     const groups: BalanceDayGroup[] = [];
 
-    sorted.forEach((expense) => {
-      const occurrenceDate = new Date(expense.date);
+    sorted.forEach((entry) => {
+      const occurrenceDate = new Date(entry.date);
       const descriptor = this.createDayDescriptor(occurrenceDate);
       const targetGroup = this.ensureGroup(groups, descriptor);
 
-      targetGroup.expenses.push({
-        id: expense.id,
-        amountLabel: this.formatAmount(expense.amount),
-        description: this.resolveDescription(expense.description),
+      targetGroup.items.push({
+        id: entry.id,
+        amountLabel: this.formatAmount(entry.amount),
+        description: this.resolveDescription(entry.description),
         timeLabel: this.formatTime(occurrenceDate),
         timestamp: occurrenceDate.getTime(),
       });
@@ -185,7 +185,7 @@ export class BalancePage {
 
     return groups.map((group) => ({
       ...group,
-      expenses: group.expenses.sort((a, b) => b.timestamp - a.timestamp),
+      items: group.items.sort((a, b) => b.timestamp - a.timestamp),
     }));
   }
 
@@ -208,7 +208,7 @@ export class BalancePage {
     const newGroup: BalanceDayGroup = {
       key: descriptor.key,
       label: descriptor.label,
-      expenses: [],
+      items: [],
     };
     groups.push(newGroup);
     return newGroup;
@@ -287,7 +287,7 @@ export class BalancePage {
   /**
    * Ensures the description fallback when no text is available.
    *
-   * @param description Optional expense description.
+   * @param description Optional entry description.
    * @returns The description or a default fallback.
    */
   private resolveDescription(description: string | undefined): string {

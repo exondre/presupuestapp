@@ -1,56 +1,53 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import {
-  ExpenseCreation,
-  ExpenseData,
-} from '../models/expense-data.model';
+import { EntryCreation, EntryData } from '../models/entry-data.model';
 import { LocalStorageService } from './local-storage.service';
 
-type StoredExpense = Partial<ExpenseData> & {
+type StoredEntry = Partial<EntryData> & {
   amount?: number;
   date?: string;
   description?: string;
 };
 
 /**
- * Manages the lifecycle of expenses by keeping them in memory and persisting
+ * Manages the lifecycle of entries by keeping them in memory and persisting
  * them in the local storage.
  */
 @Injectable({
   providedIn: 'root',
 })
-export class ExpensesService {
-  private static readonly storageKey = 'presupuestapp:expenses';
+export class EntryService {
+  private static readonly storageKey = 'presupuestapp:entries';
   private static readonly chileTimeZone = 'America/Santiago';
 
   private readonly localStorageService = inject(LocalStorageService);
 
-  private readonly expensesSubject = new BehaviorSubject<ExpenseData[]>(
-    this.restoreExpensesFromStorage(),
+  private readonly entriesSubject = new BehaviorSubject<EntryData[]>(
+    this.restoreEntriesFromStorage(),
   );
   private readonly monthKeyFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: ExpensesService.chileTimeZone,
+    timeZone: EntryService.chileTimeZone,
     year: 'numeric',
     month: '2-digit',
   });
 
-  readonly expenses$ = this.expensesSubject.asObservable();
+  readonly entries$ = this.entriesSubject.asObservable();
 
   /**
-   * Calculates the total amount of expenses for the month that contains the reference date.
+   * Calculates the total amount of entries for the month that contains the reference date.
    *
-   * @param expenses Expenses to evaluate.
+   * @param entries Entries to evaluate.
    * @param referenceDate Date used to determine the target month.
    * @returns The aggregated amount for the specified month.
    */
   calculateMonthlyTotal(
-    expenses: ExpenseData[],
+    entries: EntryData[],
     referenceDate: Date = new Date(),
   ): number {
     const referenceKey = this.buildMonthKey(referenceDate);
 
-    return expenses.reduce((total, expense) => {
-      const occurrenceDate = new Date(expense.date);
+    return entries.reduce((total, entry) => {
+      const occurrenceDate = new Date(entry.date);
       if (Number.isNaN(occurrenceDate.getTime())) {
         return total;
       }
@@ -58,82 +55,82 @@ export class ExpensesService {
       const matchesReferenceMonth =
         this.buildMonthKey(occurrenceDate) === referenceKey;
 
-      return matchesReferenceMonth ? total + expense.amount : total;
+      return matchesReferenceMonth ? total + entry.amount : total;
     }, 0);
   }
 
   /**
-   * Adds a new expense to the in-memory collection and persists it.
+   * Adds a new entry to the in-memory collection and persists it.
    *
-   * @param expense Expense data to store.
+   * @param entry Entry data to store.
    */
-  addExpense(expense: ExpenseCreation): void {
-    const newExpense: ExpenseData = {
+  addEntry(entry: EntryCreation): void {
+    const newEntry: EntryData = {
       id: this.generateId(),
-      amount: expense.amount,
-      date: expense.date,
-      description: expense.description,
+      amount: entry.amount,
+      date: entry.date,
+      description: entry.description,
     };
 
-    const updatedExpenses = [...this.expensesSubject.value, newExpense];
-    this.persistExpenses(updatedExpenses);
+    const updatedEntries = [...this.entriesSubject.value, newEntry];
+    this.persistEntries(updatedEntries);
   }
 
   /**
-   * Removes the expense matching the provided identifier.
+   * Removes the entry matching the provided identifier.
    *
-   * @param expenseId Identifier of the expense to remove.
+   * @param entryId Identifier of the entry to remove.
    */
-  removeExpense(expenseId: string): void {
-    const currentExpenses = this.expensesSubject.value;
-    const updatedExpenses = currentExpenses.filter(
-      (expense) => expense.id !== expenseId,
+  removeEntry(entryId: string): void {
+    const currentEntries = this.entriesSubject.value;
+    const updatedEntries = currentEntries.filter(
+      (entry) => entry.id !== entryId,
     );
 
-    if (updatedExpenses.length === currentExpenses.length) {
+    if (updatedEntries.length === currentEntries.length) {
       return;
     }
 
-    this.persistExpenses(updatedExpenses);
+    this.persistEntries(updatedEntries);
   }
 
   /**
-   * Replaces the current expense collection with the data provided in the import payload.
+   * Replaces the current entry collection with the data provided in the import payload.
    *
    * @param rawData Data obtained from an import file.
    */
-  importExpenses(rawData: unknown): void {
-    const importedExpenses = this.extractImportedExpenses(rawData);
+  importEntries(rawData: unknown): void {
+    const importedEntries = this.extractImportedEntries(rawData);
 
-    const normalizedExpenses: ExpenseData[] = importedExpenses.map((expense) => {
-      const normalized = this.normalizeStoredExpense(expense);
+    const normalizedEntries: EntryData[] = importedEntries.map((entry) => {
+      const normalized = this.normalizeStoredEntry(entry);
       if (!normalized) {
-        throw new Error('Invalid expense entry detected during import.');
+        throw new Error('Invalid entry detected during import.');
       }
 
-      return normalized.expense;
+      return normalized.entry;
     });
 
-    this.persistExpenses(normalizedExpenses);
+    this.persistEntries(normalizedEntries);
   }
 
   /**
-   * Retrieves an immutable snapshot of the current expense collection.
+   * Retrieves an immutable snapshot of the current entry collection.
    *
-   * @returns The current expenses stored in memory.
+   * @returns The current entries stored in memory.
    */
-  getExpensesSnapshot(): ExpenseData[] {
-    return [...this.expensesSubject.value];
+  getEntriesSnapshot(): EntryData[] {
+    return [...this.entriesSubject.value];
   }
 
   /**
-   * Persists the provided expenses in memory and local storage.
+   * Persists the provided entries in memory and local storage.
    *
-   * @param expenses Expenses collection to persist.
+   * @param entries Entries collection to persist.
    */
-  private persistExpenses(expenses: ExpenseData[]): void {
-    this.expensesSubject.next(expenses);
-    this.localStorageService.setItem(ExpensesService.storageKey, expenses);
+  private persistEntries(entries: EntryData[]): void {
+    this.entriesSubject.next(entries);
+    this.localStorageService.setItem(EntryService.storageKey, entries);
   }
 
   /**
@@ -154,37 +151,37 @@ export class ExpensesService {
   }
 
   /**
-   * Restores expenses from local storage or returns an empty collection.
+   * Restores entries from local storage or returns an empty collection.
    *
-   * @returns Expenses retrieved from local storage.
+   * @returns Entries retrieved from local storage.
    */
-  private restoreExpensesFromStorage(): ExpenseData[] {
-    const storedExpenses =
-      this.localStorageService.getItem<StoredExpense[]>(
-        ExpensesService.storageKey,
+  private restoreEntriesFromStorage(): EntryData[] {
+    const storedEntries =
+      this.localStorageService.getItem<StoredEntry[]>(
+        EntryService.storageKey,
       ) ?? [];
 
-    if (!Array.isArray(storedExpenses)) {
+    if (!Array.isArray(storedEntries)) {
       return [];
     }
 
-    const normalized: ExpenseData[] = [];
+    const normalized: EntryData[] = [];
     let requiresPersistence = false;
 
-    storedExpenses.forEach((expense) => {
-      const normalizedExpense = this.normalizeStoredExpense(expense);
-      if (!normalizedExpense) {
+    storedEntries.forEach((entry) => {
+      const normalizedEntry = this.normalizeStoredEntry(entry);
+      if (!normalizedEntry) {
         requiresPersistence = true;
         return;
       }
 
-      requiresPersistence ||= normalizedExpense.requiresSync;
-      normalized.push(normalizedExpense.expense);
+      requiresPersistence ||= normalizedEntry.requiresSync;
+      normalized.push(normalizedEntry.entry);
     });
 
     if (requiresPersistence) {
       this.localStorageService.setItem(
-        ExpensesService.storageKey,
+        EntryService.storageKey,
         normalized,
       );
     }
@@ -193,37 +190,37 @@ export class ExpensesService {
   }
 
   /**
-   * Normalizes the stored expense to conform to the in-memory representation.
+   * Normalizes the stored entry to conform to the in-memory representation.
    *
-   * @param expense Expense retrieved from the storage.
-   * @returns The normalized expense and whether it required fixing.
+   * @param entry Entry retrieved from the storage.
+   * @returns The normalized entry and whether it required fixing.
    */
-  private normalizeStoredExpense(
-    expense: StoredExpense,
-  ): { expense: ExpenseData; requiresSync: boolean } | null {
-    if (!expense || typeof expense !== 'object') {
+  private normalizeStoredEntry(
+    entry: StoredEntry,
+  ): { entry: EntryData; requiresSync: boolean } | null {
+    if (!entry || typeof entry !== 'object') {
       return null;
     }
 
-    const amount = this.normalizeAmount(expense.amount);
+    const amount = this.normalizeAmount(entry.amount);
     const { normalizedDate, requiresSync: dateRequiresSync } =
-      this.normalizeDate(expense.date);
+      this.normalizeDate(entry.date);
     const rawDescription =
-      typeof expense.description === 'string'
-        ? expense.description.trim()
+      typeof entry.description === 'string'
+        ? entry.description.trim()
         : '';
     const description =
       rawDescription.length > 0 ? rawDescription : undefined;
 
     const id =
-      typeof expense.id === 'string' && expense.id.trim().length > 0
-        ? expense.id
+      typeof entry.id === 'string' && entry.id.trim().length > 0
+        ? entry.id
         : this.generateId();
 
-    const requiresSync = dateRequiresSync || id !== expense.id;
+    const requiresSync = dateRequiresSync || id !== entry.id;
 
     return {
-      expense: {
+      entry: {
         id,
         amount,
         date: normalizedDate,
@@ -268,7 +265,7 @@ export class ExpensesService {
   }
 
   /**
-   * Generates a unique identifier for a new expense.
+   * Generates a unique identifier for a new entry.
    *
    * @returns The generated identifier.
    */
@@ -287,22 +284,23 @@ export class ExpensesService {
   }
 
   /**
-   * Extracts the expenses array from an import payload supporting multiple formats.
+   * Extracts the entries array from an import payload supporting multiple formats.
    *
    * @param rawData Data read from an import file.
-   * @returns Normalized raw expenses ready for further validation.
+   * @returns Normalized raw entries ready for further validation.
    */
-  private extractImportedExpenses(rawData: unknown): StoredExpense[] {
+  private extractImportedEntries(rawData: unknown): StoredEntry[] {
     if (Array.isArray(rawData)) {
       this.ensureEveryEntryIsObject(rawData);
-      return rawData as StoredExpense[];
+      return rawData as StoredEntry[];
     }
 
     if (rawData && typeof rawData === 'object') {
-      const candidate = (rawData as { expenses?: unknown }).expenses;
+      const candidate = (rawData as { entries?: unknown; expenses?: unknown }).entries
+        ?? (rawData as { entries?: unknown; expenses?: unknown }).expenses;
       if (Array.isArray(candidate)) {
         this.ensureEveryEntryIsObject(candidate);
-        return candidate as StoredExpense[];
+        return candidate as StoredEntry[];
       }
     }
 
@@ -319,7 +317,7 @@ export class ExpensesService {
       (item) => item === null || typeof item !== 'object',
     );
     if (hasInvalid) {
-      throw new Error('Invalid expense entry detected during import.');
+      throw new Error('Invalid entry detected during import.');
     }
   }
 }

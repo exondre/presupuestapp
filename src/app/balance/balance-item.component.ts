@@ -12,9 +12,9 @@ import { addIcons } from 'ionicons';
 import { createOutline, trashOutline, arrowUpCircleOutline } from 'ionicons/icons';
 
 /**
- * Represents the view model required to render an expense inside the balance list.
+ * Represents the view model required to render an entry inside the balance list.
  */
-export interface BalanceExpenseViewModel {
+export interface BalanceItemViewModel {
   id: string;
   amountLabel: string;
   description: string;
@@ -23,13 +23,13 @@ export interface BalanceExpenseViewModel {
 }
 
 /**
- * Renders an expense entry using an Ion Item Sliding with quick actions.
+ * Renders an entry using an Ion Item Sliding with quick actions.
  */
 @Component({
-  selector: 'app-balance-expense-item',
+  selector: 'app-balance-item',
   standalone: true,
-  templateUrl: './balance-expense-item.component.html',
-  styleUrls: ['./balance-expense-item.component.scss'],
+  templateUrl: './balance-item.component.html',
+  styleUrls: ['./balance-item.component.scss'],
   imports: [
     IonItemSliding,
     IonItem,
@@ -40,21 +40,20 @@ export interface BalanceExpenseViewModel {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BalanceExpenseItemComponent {
+export class BalanceItemComponent {
   @ViewChild(IonItemSlidingElement)
   private readonly slidingItem?: IonItemSlidingElement;
 
-  readonly expenseSignal = input.required<BalanceExpenseViewModel>();
+  readonly itemSignal = input.required<BalanceItemViewModel>();
 
   readonly editRequested = output<void>();
 
   readonly deleteRequested = output<void>();
   readonly deleteRequestedWithSwipe = output<void>();
 
-  readonly expense = computed(() => this.expenseSignal());
+  readonly item = computed(() => this.itemSignal());
 
   constructor() {
-
     addIcons({
       'create-outline': createOutline,
       'trash-outline': trashOutline,

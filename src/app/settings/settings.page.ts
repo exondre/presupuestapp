@@ -26,8 +26,8 @@ import {
   cloudDownloadOutline,
   warningOutline,
 } from 'ionicons/icons';
-import { ExpensesService } from '../shared/services/expenses.service';
-import { ExpenseData } from '../shared/models/expense-data.model';
+import { EntryService } from '../shared/services/entry.service';
+import { EntryData } from '../shared/models/entry-data.model';
 
 /**
  * Provides application settings such as data import and export utilities.
@@ -61,7 +61,7 @@ export class SettingsPage {
 
   private readonly toastController = inject(ToastController);
 
-  private readonly expensesService = inject(ExpensesService);
+  private readonly entryService = inject(EntryService);
 
   constructor() {
     addIcons({
@@ -72,11 +72,11 @@ export class SettingsPage {
   }
 
   /**
-   * Handles the user interaction to import expenses from a JSON file.
+   * Handles the user interaction to import entries from a JSON file.
    */
   protected async handleImport(): Promise<void> {
-    const expenses = this.expensesService.getExpensesSnapshot();
-    if (expenses.length > 0) {
+    const entries = this.entryService.getEntriesSnapshot();
+    if (entries.length > 0) {
       const alert = await this.alertController.create({
         header: 'Sobrescribir datos',
         message:
@@ -104,13 +104,13 @@ export class SettingsPage {
   }
 
   /**
-   * Initiates the export of all expenses into a JSON file.
+   * Initiates the export of all entries into a JSON file.
    */
   protected async handleExport(): Promise<void> {
     try {
       await this.withLoader('Exportando gastos…', async () => {
-        const expenses = this.expensesService.getExpensesSnapshot();
-        this.downloadExpenses(expenses);
+        const entries = this.entryService.getEntriesSnapshot();
+        this.downloadEntries(entries);
       });
       await this.presentToast('Exportación completada.');
     } catch (error) {
@@ -139,7 +139,7 @@ export class SettingsPage {
       await this.withLoader('Importando gastos…', async () => {
         const fileContent = await file.text();
         const parsedData = JSON.parse(fileContent) as unknown;
-        this.expensesService.importExpenses(parsedData);
+        this.entryService.importEntries(parsedData);
       });
       await this.presentToast('Importación completada.');
     } catch (error) {
@@ -202,12 +202,12 @@ export class SettingsPage {
   }
 
   /**
-   * Creates a downloadable JSON file containing the provided expenses.
+   * Creates a downloadable JSON file containing the provided entries.
    *
-   * @param expenses Expenses to include in the export file.
+   * @param entries Entries to include in the export file.
    */
-  private downloadExpenses(expenses: ExpenseData[]): void {
-    const serialized = JSON.stringify(expenses, null, 2);
+  private downloadEntries(entries: EntryData[]): void {
+    const serialized = JSON.stringify(entries, null, 2);
     const blob = new Blob([serialized], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const timestamp = new Date()
