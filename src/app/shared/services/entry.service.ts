@@ -41,7 +41,7 @@ export class EntryService {
    * @param referenceDate Date used to determine the target month.
    * @returns The aggregated amount for the specified month considering only expenses.
    */
-  calculateMonthlyTotal(
+  calculateMonthlyExpenseTotal(
     entries: EntryData[],
     referenceDate: Date = new Date(),
   ): number {
@@ -68,6 +68,16 @@ export class EntryService {
       EntryType.INCOME,
       referenceDate,
     );
+  }
+
+  calculateMonthlyBalance(
+    entries: EntryData[],
+    referenceDate: Date = new Date(),
+  ): number {
+    const income = this.calculateMonthlyIncomeTotal(entries, referenceDate);
+    const expense = this.calculateMonthlyExpenseTotal(entries, referenceDate);
+
+    return income - expense;
   }
 
   /**

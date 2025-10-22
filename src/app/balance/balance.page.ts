@@ -90,7 +90,7 @@ export class BalancePage {
   protected readonly groups = computed(() => this.buildGroups(this.entries()));
   protected readonly currentMonthSummary = computed(() => {
     const today = new Date();
-    const expensesTotal = this.entryService.calculateMonthlyTotal(
+    const expensesTotal = this.entryService.calculateMonthlyExpenseTotal(
       this.entries(),
       today,
     );
@@ -98,10 +98,15 @@ export class BalancePage {
       this.entries(),
       today,
     );
+    const monthlyBalance = this.entryService.calculateMonthlyBalance(
+      this.entries(),
+      today,
+    );
 
     return {
       expensesLabel: this.formatAmount(expensesTotal),
       incomesLabel: this.formatAmount(incomesTotal),
+      balanceLabel: this.formatAmount(monthlyBalance),
       subtitle: this.buildMonthSubtitle(today),
     };
   });

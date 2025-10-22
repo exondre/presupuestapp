@@ -5,92 +5,118 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="balance-content">
-  @let summary = currentMonthSummary();
-  <swiper-container
-    class="balance-summary"
-    slides-per-view="1"
-    space-between="16"
-    pagination="false"
-    allow-touch-move="true"
-  >
-    <swiper-slide>
-      <ion-card class="balance-summary-card balance-summary-card--expenses">
-        <ion-card-header class="balance-summary-card__header">
-          <ion-card-title class="balance-summary-card__title">
-            {{ summary.expensesLabel }}
-          </ion-card-title>
-          <ion-card-subtitle class="balance-summary-card__subtitle">
-            Total de gastos
-            @if (summary.subtitle) {
-              de
-              <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
-            }
-          </ion-card-subtitle>
-        </ion-card-header>
-        <ion-card-content class="balance-summary-card__content">
-          <ion-icon
-            name="information-circle-outline"
-            aria-hidden="true"
-            class="balance-summary-card__icon"
-          ></ion-icon>
-          <span>Esto es lo que has gastado este mes.</span>
-        </ion-card-content>
-      </ion-card>
-    </swiper-slide>
-    <swiper-slide>
-      <ion-card class="balance-summary-card balance-summary-card--income">
-        <ion-card-header class="balance-summary-card__header">
-          <ion-card-title class="balance-summary-card__title">
-            {{ summary.incomesLabel }}
-          </ion-card-title>
-          <ion-card-subtitle class="balance-summary-card__subtitle">
-            Total de ingresos
-            @if (summary.subtitle) {
-              de
-              <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
-            }
-          </ion-card-subtitle>
-        </ion-card-header>
-        <ion-card-content class="balance-summary-card__content">
-          <ion-icon
-            name="information-circle-outline"
-            aria-hidden="true"
-            class="balance-summary-card__icon"
-          ></ion-icon>
-          <span>Esto es lo que has recibido este mes.</span>
-        </ion-card-content>
-      </ion-card>
-    </swiper-slide>
-  </swiper-container>
+  @if (groups().length === 0) {
+    <div class="empty-state">
+      <p class="empty-state__title">Aún no registras transacciones</p>
+      <p class="empty-state__subtitle">
+        Cuando agregues transacciones aparecerán aquí.
+      </p>
+    </div>
+  } @else {
+    @let summary = currentMonthSummary();
+    <swiper-container
+      class="balance-summary"
+      slides-per-view="1"
+      space-between="16"
+      pagination="false"
+      initial-slide="1"
+      allow-touch-move="true"
+      grab-cursor="true"
+    >
+      <swiper-slide>
+        <ion-card class="balance-summary-card balance-summary-card--income">
+          <ion-card-header class="balance-summary-card__header">
+            <ion-card-title class="balance-summary-card__title">
+              {{ summary.incomesLabel }}
+            </ion-card-title>
+            <ion-card-subtitle class="balance-summary-card__subtitle">
+              Total de ingresos
+              @if (summary.subtitle) {
+                de
+                <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
+              }
+            </ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content class="balance-summary-card__content">
+            <ion-icon
+              name="information-circle-outline"
+              aria-hidden="true"
+              class="balance-summary-card__icon"
+            ></ion-icon>
+            <span>Esto es lo que has recibido este mes.</span>
+          </ion-card-content>
+        </ion-card>
+      </swiper-slide>
+      <swiper-slide>
+        <ion-card class="balance-summary-card balance-summary-card--expenses">
+          <ion-card-header class="balance-summary-card__header">
+            <ion-card-title class="balance-summary-card__title">
+              {{ summary.expensesLabel }}
+            </ion-card-title>
+            <ion-card-subtitle class="balance-summary-card__subtitle">
+              Total de gastos
+              @if (summary.subtitle) {
+                de
+                <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
+              }
+            </ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content class="balance-summary-card__content">
+            <ion-icon
+              name="information-circle-outline"
+              aria-hidden="true"
+              class="balance-summary-card__icon"
+            ></ion-icon>
+            <span>Esto es lo que has gastado este mes.</span>
+          </ion-card-content>
+        </ion-card>
+      </swiper-slide>
+      <swiper-slide>
+        <ion-card class="balance-summary-card balance-summary-card">
+          <ion-card-header class="balance-summary-card__header">
+            <ion-card-title class="balance-summary-card__title">
+              {{ summary.balanceLabel }}
+            </ion-card-title>
+            <ion-card-subtitle class="balance-summary-card__subtitle">
+              Balance total
+              @if (summary.subtitle) {
+                de
+                <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
+              }
+            </ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content class="balance-summary-card__content">
+            <ion-icon
+              name="information-circle-outline"
+              aria-hidden="true"
+              class="balance-summary-card__icon"
+            ></ion-icon>
+            <span>Esto es la suma de tus gastos e ingresos.</span>
+          </ion-card-content>
+        </ion-card>
+      </swiper-slide>
+    </swiper-container>
 
-  <ion-list lines="none" class="balance-list">
-    @if (groups().length === 0) {
-      <div class="empty-state">
-        <p class="empty-state__title">Aún no registras transacciones</p>
-        <p class="empty-state__subtitle">
-          Cuando agregues transacciones aparecerán aquí.
-        </p>
-      </div>
-    } @else {
-      @for (group of groups(); track group.key) {
-        <ion-item-group class="balance-day-group">
-          <ion-item-divider class="balance-divider" sticky="true">
-            <ion-label class="balance-divider__label">
-              {{ group.label }}
-            </ion-label>
-          </ion-item-divider>
-          @for (item of group.items; track item.id) {
-            <app-balance-item
-              [itemSignal]="item"
-              (editRequested)="handleEditEntry(item.id)"
-              (deleteRequested)="handleDeleteEntry(item.id)"
-              (deleteRequestedWithSwipe)="handleDeleteEntry(item.id, false)"
-            ></app-balance-item>
-          }
-        </ion-item-group>
-      }
-    }
-  </ion-list>
+    <ion-list lines="none" class="balance-list">
+        @for (group of groups(); track group.key) {
+          <ion-item-group class="balance-day-group">
+            <ion-item-divider class="balance-divider" sticky="true">
+              <ion-label class="balance-divider__label">
+                {{ group.label }}
+              </ion-label>
+            </ion-item-divider>
+            @for (item of group.items; track item.id) {
+              <app-balance-item
+                [itemSignal]="item"
+                (editRequested)="handleEditEntry(item.id)"
+                (deleteRequested)="handleDeleteEntry(item.id)"
+                (deleteRequestedWithSwipe)="handleDeleteEntry(item.id, false)"
+              ></app-balance-item>
+            }
+          </ion-item-group>
+        }
+    </ion-list>
+  }
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="balance-add-entry">
     <ion-fab-button (click)="openEntryModal(null)">
