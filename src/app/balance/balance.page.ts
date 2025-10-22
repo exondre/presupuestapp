@@ -1,30 +1,16 @@
-import { Component, computed, inject } from '@angular/core';
-import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonList,
-  IonItemGroup,
-  IonItemDivider,
-  IonLabel,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonCardContent,
-  IonIcon,
-} from '@ionic/angular/standalone';
+import { Component, computed, inject, ViewChild } from '@angular/core';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItemGroup, IonItemDivider, IonLabel, IonCard, IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent, IonIcon, IonFab, IonFabButton } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { EntryData } from '../shared/models/entry-data.model';
+import { EntryCreation, EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import {
   BalanceItemComponent,
   BalanceItemViewModel,
 } from './balance-item.component';
 import { addIcons } from 'ionicons';
-import { informationCircleOutline } from 'ionicons/icons';
+import { addOutline, informationCircleOutline } from 'ionicons/icons';
+import { NewEntryModalComponent } from "../shared/components/new-entry-modal/new-entry-modal.component";
 
 interface BalanceDayGroup {
   key: string;
@@ -56,9 +42,15 @@ interface BalanceDayGroup {
     IonCardContent,
     IonIcon,
     BalanceItemComponent,
-  ],
+    IonFab,
+    IonFabButton,
+    NewEntryModalComponent
+],
 })
 export class BalancePage {
+  @ViewChild('newEntryModal')
+  private modal?: NewEntryModalComponent;
+
   private static readonly chileTimeZone = 'America/Santiago';
 
   private readonly dayKeyFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -111,6 +103,7 @@ export class BalancePage {
   constructor() {
     addIcons({
       'information-circle-outline': informationCircleOutline,
+      'add-outline': addOutline,
     });
   }
 
@@ -153,6 +146,30 @@ export class BalancePage {
    */
   protected handleEditEntry(entryId: string): void {
     void entryId;
+  }
+
+  /**
+   * Receives the data emitted when a new entry has been saved.
+   *
+   * @param entry Entry data captured through the modal.
+   */
+  protected handleEntrySaved(entry: EntryCreation): void {
+    this.entryService.addEntry(entry);
+  }
+
+  /**
+   * Opens the entry modal optionally locking the type selection.
+   *
+   * @param type Entry type to preset or null to allow selection.
+   */
+  protected openEntryModal(type: EntryType | null): void {
+    const modal = this.modal;
+    if (!modal) {
+      return;
+    }
+
+    modal.setPresetType(type);
+    modal.open();
   }
 
   /**

@@ -80,6 +80,27 @@
   }
 }
 
+.balance-add-entry {
+  --background: red;
+  --background-activated-opacity: 0.12;
+
+  ion-fab-button {
+    --background: transparent;
+    --border-color: var(--ion-color-primary);
+    --border-width: 1px;
+    --border-style: solid;
+
+    // --background-activated: var(--ion-color-primary);
+  }
+
+  ion-icon {
+    color: var(--ion-color-primary);
+    font-size: 1.5rem;
+  }
+}
+
+
+
 .empty-state {
   margin-top: 4rem;
   text-align: center;

@@ -57,4 +57,15 @@
       }
     }
   </ion-list>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="balance-add-entry">
+    <ion-fab-button (click)="openEntryModal(null)">
+      <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
 </ion-content>
+
+<app-new-entry-modal
+  #newEntryModal
+  (entrySaved)="handleEntrySaved($event)"
+></app-new-entry-modal>
