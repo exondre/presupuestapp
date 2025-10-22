@@ -6,28 +6,62 @@
 
 <ion-content [fullscreen]="true" class="balance-content">
   @let summary = currentMonthSummary();
-  <ion-card class="balance-summary-card">
-    <ion-card-header class="balance-summary-card__header">
-      <ion-card-title class="balance-summary-card__title">
-        {{ summary.totalLabel }}
-      </ion-card-title>
-      <ion-card-subtitle class="balance-summary-card__subtitle">
-        Total de gastos
-        @if (summary.subtitle) {
-          de
-          <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
-        }
-      </ion-card-subtitle>
-    </ion-card-header>
-    <ion-card-content class="balance-summary-card__content">
-      <ion-icon
-        name="information-circle-outline"
-        aria-hidden="true"
-        class="balance-summary-card__icon"
-      ></ion-icon>
-      <span>Esto es lo que llevas gastado el mes actual.</span>
-    </ion-card-content>
-  </ion-card>
+  <swiper-container
+    class="balance-summary"
+    slides-per-view="1"
+    space-between="16"
+    pagination="false"
+    allow-touch-move="true"
+  >
+    <swiper-slide>
+      <ion-card class="balance-summary-card balance-summary-card--expenses">
+        <ion-card-header class="balance-summary-card__header">
+          <ion-card-title class="balance-summary-card__title">
+            {{ summary.expensesLabel }}
+          </ion-card-title>
+          <ion-card-subtitle class="balance-summary-card__subtitle">
+            Total de gastos
+            @if (summary.subtitle) {
+              de
+              <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
+            }
+          </ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content class="balance-summary-card__content">
+          <ion-icon
+            name="information-circle-outline"
+            aria-hidden="true"
+            class="balance-summary-card__icon"
+          ></ion-icon>
+          <span>Esto es lo que has gastado este mes.</span>
+        </ion-card-content>
+      </ion-card>
+    </swiper-slide>
+    <swiper-slide>
+      <ion-card class="balance-summary-card balance-summary-card--income">
+        <ion-card-header class="balance-summary-card__header">
+          <ion-card-title class="balance-summary-card__title">
+            {{ summary.incomesLabel }}
+          </ion-card-title>
+          <ion-card-subtitle class="balance-summary-card__subtitle">
+            Total de ingresos
+            @if (summary.subtitle) {
+              de
+              <span class="balance-summary-card__subtitle--highlight">{{ summary.subtitle }}</span>
+            }
+          </ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content class="balance-summary-card__content">
+          <ion-icon
+            name="information-circle-outline"
+            aria-hidden="true"
+            class="balance-summary-card__icon"
+          ></ion-icon>
+          <span>Esto es lo que has recibido este mes.</span>
+        </ion-card-content>
+      </ion-card>
+    </swiper-slide>
+  </swiper-container>
 
   <ion-list lines="none" class="balance-list">
     @if (groups().length === 0) {

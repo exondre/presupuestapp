@@ -1,4 +1,4 @@
-import { Component, computed, inject, ViewChild } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, ViewChild, computed, inject } from '@angular/core';
 import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItemGroup, IonItemDivider, IonLabel, IonCard, IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent, IonIcon, IonFab, IonFabButton } from '@ionic/angular/standalone';
 import { AlertController } from '@ionic/angular';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -10,7 +10,7 @@ import {
 } from './balance-item.component';
 import { addIcons } from 'ionicons';
 import { addOutline, informationCircleOutline } from 'ionicons/icons';
-import { NewEntryModalComponent } from "../shared/components/new-entry-modal/new-entry-modal.component";
+import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 
 interface BalanceDayGroup {
   key: string;
@@ -44,8 +44,9 @@ interface BalanceDayGroup {
     BalanceItemComponent,
     IonFab,
     IonFabButton,
-    NewEntryModalComponent
-],
+    NewEntryModalComponent,
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class BalancePage {
   @ViewChild('newEntryModal')
@@ -89,13 +90,18 @@ export class BalancePage {
   protected readonly groups = computed(() => this.buildGroups(this.entries()));
   protected readonly currentMonthSummary = computed(() => {
     const today = new Date();
-    const total = this.entryService.calculateMonthlyTotal(
+    const expensesTotal = this.entryService.calculateMonthlyTotal(
+      this.entries(),
+      today,
+    );
+    const incomesTotal = this.entryService.calculateMonthlyIncomeTotal(
       this.entries(),
       today,
     );
 
     return {
-      totalLabel: this.formatAmount(total),
+      expensesLabel: this.formatAmount(expensesTotal),
+      incomesLabel: this.formatAmount(incomesTotal),
       subtitle: this.buildMonthSubtitle(today),
     };
   });

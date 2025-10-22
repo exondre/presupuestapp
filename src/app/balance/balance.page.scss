@@ -8,23 +8,29 @@
   flex-direction: column;
 }
 
+.balance-summary {
+  display: block;
+  // padding-bottom: 0.75rem;
+  width: 100%;
+}
+
 .balance-summary-card {
-  margin: 1.25rem 1rem 0;
-  flex: 0 0 auto;
+  margin: 1rem 1rem;
+  border-radius: 1rem;
 
   &__header {
-    // margin-bottom: ;
+    display: flex;
+    flex-direction: column;
     padding-bottom: 5px;
+    // gap: 0.3rem;
   }
 
   &__title {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    color: var(--ion-color-dark);
   }
 
   &__subtitle {
-    margin-top: 0.25rem;
     font-size: 0.875rem;
     color: var(--ion-color-medium);
     text-transform: none;
@@ -34,6 +40,8 @@
     &--highlight {
       font-weight: 600;
       color: var(--ion-color-primary);
+      // color: var(--ion-color-dark);
+      // text-transform: capitalize;
     }
   }
 
@@ -41,18 +49,32 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 0.65rem;
+    font-size: 0.70rem;
     color: var(--ion-color-medium);
   }
 
   &__icon {
     font-size: 1rem;
+    // color: var(--ion-color-medium);
     color: var(--ion-color-primary);
+
+  }
+}
+
+.balance-summary-card--expenses {
+  .balance-summary-card__title {
+    color: var(--ion-color-danger);
+  }
+}
+
+.balance-summary-card--income {
+  .balance-summary-card__title {
+    color: var(--ion-color-success);
   }
 }
 
 .balance-list {
-  margin-top: 15px;
+  // margin-top: 15px;
   background: transparent;
   flex: 1;
   display: flex;

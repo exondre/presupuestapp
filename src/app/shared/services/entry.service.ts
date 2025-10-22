@@ -45,22 +45,29 @@ export class EntryService {
     entries: EntryData[],
     referenceDate: Date = new Date(),
   ): number {
-    const referenceKey = this.buildMonthKey(referenceDate);
-    const expenseEntries = entries.filter(
-      (entry) => entry.type === EntryType.EXPENSE,
+    return this.calculateMonthlyTotalForType(
+      entries,
+      EntryType.EXPENSE,
+      referenceDate,
     );
+  }
 
-    return expenseEntries.reduce((total, entry) => {
-      const occurrenceDate = new Date(entry.date);
-      if (Number.isNaN(occurrenceDate.getTime())) {
-        return total;
-      }
-
-      const matchesReferenceMonth =
-        this.buildMonthKey(occurrenceDate) === referenceKey;
-
-      return matchesReferenceMonth ? total + entry.amount : total;
-    }, 0);
+  /**
+   * Calculates the total amount of income entries for the month that contains the reference date.
+   *
+   * @param entries Entries to evaluate.
+   * @param referenceDate Date used to determine the target month.
+   * @returns The aggregated amount for the specified month considering only incomes.
+   */
+  calculateMonthlyIncomeTotal(
+    entries: EntryData[],
+    referenceDate: Date = new Date(),
+  ): number {
+    return this.calculateMonthlyTotalForType(
+      entries,
+      EntryType.INCOME,
+      referenceDate,
+    );
   }
 
   /**
@@ -137,6 +144,37 @@ export class EntryService {
   private persistEntries(entries: EntryData[]): void {
     this.entriesSubject.next(entries);
     this.localStorageService.setItem(EntryService.storageKey, entries);
+  }
+
+  /**
+   * Calculates the monthly total for the provided entry type.
+   *
+   * @param entries Entries to evaluate.
+   * @param type Entry type to include in the aggregation.
+   * @param referenceDate Date used to determine the target month.
+   * @returns The aggregated amount for the specified month and type.
+   */
+  private calculateMonthlyTotalForType(
+    entries: EntryData[],
+    type: EntryType,
+    referenceDate: Date,
+  ): number {
+    const referenceKey = this.buildMonthKey(referenceDate);
+    return entries.reduce((total, entry) => {
+      if (entry.type !== type) {
+        return total;
+      }
+
+      const occurrenceDate = new Date(entry.date);
+      if (Number.isNaN(occurrenceDate.getTime())) {
+        return total;
+      }
+
+      const matchesReferenceMonth =
+        this.buildMonthKey(occurrenceDate) === referenceKey;
+
+      return matchesReferenceMonth ? total + entry.amount : total;
+    }, 0);
   }
 
   /**
