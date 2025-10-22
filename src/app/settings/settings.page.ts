@@ -89,15 +89,15 @@ export class SettingsPage {
           {
             text: 'Sobrescribir',
             role: 'confirm',
+            handler: () => {
+              this.openFileSelector();
+            }
           },
         ],
       });
 
       await alert.present();
-      const { role } = await alert.onDidDismiss();
-      if (role !== 'confirm') {
-        return;
-      }
+      return;
     }
 
     this.openFileSelector();
