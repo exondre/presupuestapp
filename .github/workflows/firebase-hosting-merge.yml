@@ -8,11 +8,25 @@ on:
       - main
 jobs:
   build_and_deploy:
+    name: 👷 Firebase deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: npm ci
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧱 Install Ionic CLI
+        run: npm install -g @ionic/cli
+
+      - name: 🏗️ Build Ionic app
+        run: ionic build --prod
+        env:
+          NODE_ENV: production
+
+      - name: 🚀 Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRESUPUESTAPP_D0B94 }}
