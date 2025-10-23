@@ -9,7 +9,7 @@
     "singleProjectMode": true
   },
   "hosting": {
-    "source": ".",
+    "source": "www",
     "ignore": [
       "firebase.json",
       "**/.*",
