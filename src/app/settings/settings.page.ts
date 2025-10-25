@@ -5,29 +5,27 @@ import {
   inject,
 } from '@angular/core';
 import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
+  AlertController,
   IonContent,
-  IonList,
+  IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
-  IonIcon,
+  IonList,
   IonText,
-} from '@ionic/angular/standalone';
-import {
-  AlertController,
+  IonTitle,
+  IonToolbar,
   LoadingController,
   ToastController,
-} from '@ionic/angular';
+} from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  cloudUploadOutline,
   cloudDownloadOutline,
+  cloudUploadOutline,
   warningOutline,
 } from 'ionicons/icons';
-import { EntryService } from '../shared/services/entry.service';
 import { EntryData } from '../shared/models/entry-data.model';
+import { EntryService } from '../shared/services/entry.service';
 
 /**
  * Provides application settings such as data import and export utilities.

@@ -7,32 +7,32 @@ import {
   input,
   output,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  FormControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
-  Validators,
-  FormControl,
   ValidatorFn,
+  Validators,
 } from '@angular/forms';
 import {
-  IonModal,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
+  AlertController,
   IonButton,
+  IonButtons,
   IonContent,
-  IonList,
+  IonDatetime,
+  IonHeader,
+  IonInput,
   IonItem,
   IonLabel,
-  IonInput,
-  IonTextarea,
-  IonDatetime,
+  IonList,
+  IonModal,
   IonSegment,
   IonSegmentButton,
+  IonTextarea,
+  IonTitle,
+  IonToolbar,
 } from '@ionic/angular/standalone';
-import { AlertController } from '@ionic/angular';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EntryCreation, EntryType } from '../../models/entry-data.model';
 
 @Component({

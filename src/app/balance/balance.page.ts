@@ -1,16 +1,15 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, ViewChild, computed, inject } from '@angular/core';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItemGroup, IonItemDivider, IonLabel, IonCard, IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent, IonIcon, IonFab, IonFabButton } from '@ionic/angular/standalone';
-import { AlertController } from '@ionic/angular';
+import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, ViewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { AlertController, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { addOutline, informationCircleOutline } from 'ionicons/icons';
+import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { EntryCreation, EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import {
   BalanceItemComponent,
   BalanceItemViewModel,
 } from './balance-item.component';
-import { addIcons } from 'ionicons';
-import { addOutline, informationCircleOutline } from 'ionicons/icons';
-import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 
 interface BalanceDayGroup {
   key: string;

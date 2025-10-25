@@ -1,15 +1,15 @@
-import { ChangeDetectionStrategy, Component, ViewChild, input, output, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, computed, input, output } from '@angular/core';
 import {
   IonIcon,
   IonItem,
   IonItemOption,
   IonItemOptions,
   IonItemSliding,
+  IonItemSliding as IonItemSlidingElement,
   IonLabel,
 } from '@ionic/angular/standalone';
-import { IonItemSliding as IonItemSlidingElement } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { createOutline, trashOutline, arrowUpCircleOutline } from 'ionicons/icons';
+import { arrowUpCircleOutline, createOutline, trashOutline } from 'ionicons/icons';
 import { EntryType } from '../shared/models/entry-data.model';
 
 /**
