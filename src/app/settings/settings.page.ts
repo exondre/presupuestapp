@@ -190,9 +190,7 @@ export class SettingsPage {
    * Opens the hidden file selector so the user can pick a JSON file.
    */
   private openFileSelector(): void {
-    setTimeout(() => {
-      this.fileInput?.nativeElement.click();
-    }, 0);
+    this.fileInput?.nativeElement.click();
   }
 
   /**
