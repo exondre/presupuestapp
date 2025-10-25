@@ -127,26 +127,62 @@ export class SettingsPage {
    * @param event File input change event.
    */
   protected async handleFileSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement | null;
-    const file = input?.files?.[0] ?? null;
-    this.resetFileInput();
-
-    if (file === null) {
-      return;
-    }
-
     try {
+      const input = event.target as HTMLInputElement | null;
+      const file = input?.files?.[0] ?? null;
+
+      if (!file) {
+        await this.presentError('No se seleccionó ningún archivo.', null);
+        return;
+      }
+
       await this.withLoader('Importando transacciones…', async () => {
-        const fileContent = await file.text();
-        const parsedData = JSON.parse(fileContent) as unknown;
-        this.entryService.importEntries(parsedData);
+        let fileContent: string;
+        try {
+          fileContent = await file.text();
+        } catch (readError) {
+          console.error('Error al leer el archivo:', readError);
+          throw new Error('No se pudo leer el archivo seleccionado.');
+        }
+
+        let parsedData: unknown;
+        try {
+          parsedData = JSON.parse(fileContent);
+        } catch (parseError) {
+          console.error('Error al parsear el JSON:', parseError);
+          throw new Error(
+            'El archivo no contiene un JSON válido. Por favor, selecciona un archivo exportado desde la aplicación.',
+          );
+        }
+
+        if (
+          parsedData === null ||
+          typeof parsedData !== 'object' ||
+          (Array.isArray(parsedData) && parsedData.length === 0)
+        ) {
+          throw new Error(
+            'El archivo JSON está vacío o no contiene datos válidos para importar.',
+          );
+        }
+
+        try {
+          this.entryService.importEntries(parsedData);
+        } catch (importError) {
+          console.error('Error al importar las entradas:', importError);
+          throw new Error(
+            'No se pudo importar el archivo. Asegúrate de usar un JSON válido exportado desde la aplicación.',
+          );
+        }
       });
       await this.presentToast('Importación completada.');
     } catch (error) {
-      await this.presentError(
-        'No se pudo importar el archivo. Asegúrate de usar un JSON válido exportado desde la aplicación.',
-        error,
-      );
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Ocurrió un error inesperado durante la importación.';
+      await this.presentError(message, error);
+    } finally {
+      this.resetFileInput();
     }
   }
 
