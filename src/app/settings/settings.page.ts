@@ -24,6 +24,7 @@ import {
   cloudUploadOutline,
   warningOutline,
 } from 'ionicons/icons';
+import packageInfo from '../../../package.json';
 import { EntryData } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 
@@ -49,6 +50,8 @@ import { EntryService } from '../shared/services/entry.service';
 })
 export class SettingsPage {
   private static readonly minimumLoaderDuration = 1000;
+
+  protected readonly appVersion = packageInfo.version;
 
   @ViewChild('fileInput')
   private readonly fileInput?: ElementRef<HTMLInputElement>;
