@@ -19,3 +19,4 @@ See README.md for further info
 - Use English as the only language for variable/function names, all documentation and commit messages
 - Use Spanish for user-facing purposes
 - Use Angular's built-in control flow syntax (`@if`, `@for`, etc.) instead of deprecated structural directives such as `*ngIf` or `*ngFor` when writing new templates.
+- Import for Ionic framework Angular components must always be done from `@ionic/angular/standalone`. Imports from `@ionic/angular` are strictly forbidden.

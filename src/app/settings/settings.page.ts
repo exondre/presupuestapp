@@ -1,31 +1,43 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   ViewChild,
+  computed,
   inject,
+  signal,
 } from '@angular/core';
 import {
   AlertController,
+  IonAvatar,
+  IonButton,
   IonContent,
   IonHeader,
   IonIcon,
   IonItem,
   IonLabel,
   IonList,
+  IonSpinner,
   IonText,
   IonTitle,
   IonToolbar,
   LoadingController,
   ToastController,
 } from '@ionic/angular/standalone';
+import { AsyncPipe, JsonPipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { addIcons } from 'ionicons';
 import {
   cloudDownloadOutline,
   cloudUploadOutline,
+  logoGoogle,
   warningOutline,
 } from 'ionicons/icons';
+import packageInfo from '../../../package.json';
 import { EntryData } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
+import { FirebaseAuthService, AuthStatus } from '../auth/firebase-auth.service';
+import { environment } from '../../environments/environment';
 
 /**
  * Provides application settings such as data import and export utilities.
@@ -36,6 +48,8 @@ import { EntryService } from '../shared/services/entry.service';
   templateUrl: './settings.page.html',
   styleUrls: ['./settings.page.scss'],
   imports: [
+    AsyncPipe,
+    JsonPipe,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -44,11 +58,16 @@ import { EntryService } from '../shared/services/entry.service';
     IonItem,
     IonLabel,
     IonIcon,
+    IonAvatar,
+    IonButton,
+    IonSpinner,
     IonText,
   ],
 })
 export class SettingsPage {
   private static readonly minimumLoaderDuration = 1000;
+
+  protected readonly appVersion = packageInfo.version;
 
   @ViewChild('fileInput')
   private readonly fileInput?: ElementRef<HTMLInputElement>;
@@ -61,12 +80,46 @@ export class SettingsPage {
 
   private readonly entryService = inject(EntryService);
 
+  private readonly firebaseAuthService = inject(FirebaseAuthService);
+
+  private readonly destroyRef = inject(DestroyRef);
+
+  protected readonly shouldShowAuthDebugInfo = environment.features.authDebugInfo;
+
+  protected readonly authUser$ = this.firebaseAuthService.user$;
+
+  protected readonly authStatus = signal<AuthStatus>('idle');
+
+  protected readonly isSigningIn = computed(() => this.authStatus() === 'signing-in');
+
+  protected readonly isSigningOut = computed(() => this.authStatus() === 'signing-out');
+
   constructor() {
     addIcons({
       'cloud-upload-outline': cloudUploadOutline,
       'cloud-download-outline': cloudDownloadOutline,
+      'logo-google': logoGoogle,
       'warning-outline': warningOutline,
     });
+
+    this.firebaseAuthService.status$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((status) => {
+        this.authStatus.set(status);
+      });
+
+    this.firebaseAuthService.errors$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((message) => {
+        void this.presentError(message);
+      });
+
+    this.firebaseAuthService.unexpectedSessionEnd$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        const warningMessage = 'Tu sesión con Google se cerró inesperadamente. Inicia sesión nuevamente si lo necesitas.';
+        void this.presentToast(warningMessage, 'warning');
+      });
   }
 
   /**
@@ -116,6 +169,49 @@ export class SettingsPage {
         'No se pudo generar el archivo de exportación. Intenta nuevamente.',
         error,
       );
+    }
+  }
+
+  /**
+   * Initiates the optional Google authentication flow.
+   */
+  protected async handleGoogleSignIn(): Promise<void> {
+    try {
+      const user = await this.withLoader('Iniciando sesión…', () =>
+        this.firebaseAuthService.signInWithGoogle(),
+      );
+
+      if (user) {
+        console.log('Authenticated user:', user);
+        const greeting = user.displayName
+          ? `Sesión iniciada como ${user.displayName}.`
+          : 'Sesión iniciada correctamente.';
+        await this.presentToast(greeting);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(error);
+      } else {
+        console.error('Unexpected error during Google sign-in.', error);
+      }
+    }
+  }
+
+  /**
+   * Signs the current user out from the optional authentication flow.
+   */
+  protected async handleGoogleSignOut(): Promise<void> {
+    try {
+      await this.withLoader('Cerrando sesión…', () =>
+        this.firebaseAuthService.signOut(),
+      );
+      await this.presentToast('Sesión cerrada correctamente.');
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(error);
+      } else {
+        console.error('Unexpected error during Google sign-out.', error);
+      }
     }
   }
 
@@ -261,13 +357,17 @@ export class SettingsPage {
    * Displays a toast with the provided message.
    *
    * @param message Message to present.
+   * @param color Visual style applied to the toast.
    */
-  private async presentToast(message: string): Promise<void> {
+  private async presentToast(
+    message: string,
+    color: 'success' | 'warning' | 'danger' = 'success',
+  ): Promise<void> {
     const toast = await this.toastController.create({
       message,
       duration: 1750,
       position: 'bottom',
-      color: 'success',
+      color,
     });
     await toast.present();
   }
@@ -278,7 +378,7 @@ export class SettingsPage {
    * @param message Message explaining the failure.
    * @param error Optional error instance for debugging purposes.
    */
-  private async presentError(message: string, error: unknown): Promise<void> {
+  private async presentError(message: string, error?: unknown): Promise<void> {
     if (error instanceof Error) {
       console.error(error);
     }

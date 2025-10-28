@@ -32,6 +32,13 @@ log.txt
 
 # Environment files
 /.env
+*.env.local
+src/environments/environment.local.ts
+src/environments/environment.*.local.ts
+firebase-debug.log
+google-services.json
+GoogleService-Info.plist
+/.firebase
 
 # Angular CLI and build artefacts
 /.angular-cli.json
