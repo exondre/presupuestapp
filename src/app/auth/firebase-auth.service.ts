@@ -201,6 +201,7 @@ export class FirebaseAuthService {
    * @returns True when the redirect flow should be used.
    */
   private shouldUseRedirectFlow(): boolean {
+    return true;
     if (Capacitor.isNativePlatform()) {
       return true;
     }

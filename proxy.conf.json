@@ -1,0 +1,11 @@
+{
+  "/__/auth": {
+    "target": "https://presupuestapp-d0b94.firebaseapp.com",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "pathRewrite": {
+      "^/__/auth": "/__/auth"
+    }
+  }
+}
