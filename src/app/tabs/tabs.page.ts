@@ -13,6 +13,8 @@ import { MetaThemeColorService } from '../shared/services/meta-theme-color.servi
 export class TabsPage {
   public environmentInjector = inject(EnvironmentInjector);
 
+  private readonly metaTheme = inject(MetaThemeColorService);
+
   private readonly themeColorByTab: Record<string, string> = {
     home: '#ffffff',
     balance: '#f7f7f7',
@@ -26,7 +28,7 @@ export class TabsPage {
 
   selectedTab = 'home';
 
-  constructor(private metaTheme: MetaThemeColorService) {
+  constructor() {
     addIcons({ homeOutline, statsChartOutline, cogOutline, home, statsChart, cog });
     this.applyThemeForTab(this.selectedTab);
   }

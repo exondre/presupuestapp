@@ -27,6 +27,73 @@
   overflow: hidden;
 }
 
+.settings-list--auth {
+  overflow: hidden;
+
+  .settings-auth-item {
+    --inner-padding-end: 1rem;
+    --inner-padding-start: 1rem;
+    --padding-top: 0.75rem;
+    --padding-bottom: 0.75rem;
+    align-items: center;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+
+    ion-label {
+      h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--ion-color-dark);
+      }
+
+      p {
+        margin: 0.25rem 0 0;
+        font-size: 0.85rem;
+        color: var(--ion-color-medium);
+      }
+    }
+  }
+
+  .settings-auth-item__avatar {
+    width: 3rem;
+    height: 3rem;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .settings-auth-item__avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.1);
+    color: var(--ion-color-primary);
+    font-weight: 600;
+  }
+
+  .settings-auth-debug {
+    display: block;
+    padding: 0 1rem 1rem;
+
+    pre {
+      margin: 0;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: rgba(15, 23, 42, 0.04);
+      border-radius: 12px;
+      padding: 0.75rem;
+    }
+  }
+}
+
 .settings-item {
   --inner-padding-end: 1rem;
   --inner-padding-start: 1rem;
@@ -70,6 +137,14 @@
 
   &:hover {
     background: rgba(15, 23, 42, 0.03);
+  }
+}
+
+.settings-item--auth {
+  cursor: default;
+
+  &:hover {
+    background: transparent;
   }
 }
 

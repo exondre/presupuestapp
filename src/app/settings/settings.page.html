@@ -7,6 +7,74 @@
 <ion-content [fullscreen]="true" class="settings-content">
   <div class="settings-container">
     <div class="settings-wrapper">
+      <ion-list lines="none" class="settings-list settings-list--auth">
+        @let authUser = (authUser$ | async);
+        @if (!authUser) {
+          <ion-item
+            button
+            detail="false"
+            class="settings-item settings-item--auth"
+            (click)="handleGoogleSignIn()"
+          >
+            <ion-icon
+              aria-hidden="true"
+              class="settings-item__icon"
+              name="logo-google"
+              slot="start"
+            ></ion-icon>
+            <ion-label>
+              <h2>Inicia sesión con Google</h2>
+              <p>
+                Al iniciar sesión habilitas funciones opcionales de sincronización. Puedes seguir usando la app sin hacerlo.
+              </p>
+            </ion-label>
+            @if (isSigningIn() || isSigningOut()) {
+              <ion-spinner slot="end"></ion-spinner>
+            }
+          </ion-item>
+        }
+
+        @if (authUser) {
+          <ion-item lines="none" class="settings-auth-item">
+            <ion-avatar slot="start" class="settings-auth-item__avatar">
+              @if (authUser.photoUrl) {
+                <img
+                  [alt]="authUser.displayName ?? 'Foto de perfil'"
+                  [src]="authUser.photoUrl"
+                />
+              } @else {
+                <div aria-hidden="true" class="settings-auth-item__avatar-fallback">
+                  {{ (authUser.displayName ?? authUser.email ?? 'G').charAt(0).toUpperCase() }}
+                </div>
+              }
+            </ion-avatar>
+            <ion-label>
+              <h3>{{ authUser.displayName ?? 'Cuenta de Google' }}</h3>
+              @if (authUser.email) {
+                <p>{{ authUser.email }}</p>
+              }
+            </ion-label>
+            @if (isSigningIn() || isSigningOut()) {
+              <ion-spinner slot="end"></ion-spinner>
+            } @else {
+              <ion-button
+                color="danger"
+                slot="end"
+                (click)="handleGoogleSignOut()"
+              >
+                Cerrar sesión
+              </ion-button>
+            }
+          </ion-item>
+
+          @if (shouldShowAuthDebugInfo) {
+            <ion-text color="medium" class="settings-auth-debug">
+              <pre>{{ authUser | json }}</pre>
+            </ion-text>
+          }
+        }
+      </ion-list>
+
       <ion-list lines="none" class="settings-list">
         <ion-item
           button
