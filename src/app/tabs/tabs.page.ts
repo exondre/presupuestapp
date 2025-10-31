@@ -1,9 +1,22 @@
 import { Component, EnvironmentInjector, inject } from '@angular/core';
-import { IonTabs, IonTabBar, IonTabButton, IonIcon } from '@ionic/angular/standalone';
+import {
+  IonIcon,
+  IonTabBar,
+  IonTabButton,
+  IonTabs,
+} from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { homeOutline, statsChartOutline, cogOutline, home, statsChart, cog } from 'ionicons/icons';
-import { MetaThemeColorService } from '../shared/services/meta-theme-color.service'; // ajusta la ruta si es distinta
-
+import {
+  cog,
+  cogOutline,
+  home,
+  homeOutline,
+  statsChart,
+  statsChartOutline,
+  time,
+  timeOutline,
+} from 'ionicons/icons';
+import { MetaThemeColorService } from '../shared/services/meta-theme-color.service';
 @Component({
   selector: 'app-tabs',
   templateUrl: 'tabs.page.html',
@@ -18,18 +31,29 @@ export class TabsPage {
   private readonly themeColorByTab: Record<string, string> = {
     home: '#ffffff',
     balance: '#f7f7f7',
+    history: '#f7f7f7',
     settings: '#f7f7f7',
   };
 
   private applyThemeForTab(tab?: string) {
-    const color = (tab && this.themeColorByTab[tab]) ? this.themeColorByTab[tab] : '#ffffff';
+    const color =
+      tab && this.themeColorByTab[tab] ? this.themeColorByTab[tab] : '#ffffff';
     this.metaTheme.set(color);
   }
 
   selectedTab = 'home';
 
   constructor() {
-    addIcons({ homeOutline, statsChartOutline, cogOutline, home, statsChart, cog });
+    addIcons({
+      homeOutline,
+      statsChartOutline,
+      cogOutline,
+      home,
+      statsChart,
+      cog,
+      time,
+      timeOutline,
+    });
     this.applyThemeForTab(this.selectedTab);
   }
 

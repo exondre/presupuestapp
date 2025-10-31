@@ -1,22 +1,21 @@
 <ion-tabs (ionTabsDidChange)="setSelectedTab($event)">
   <ion-tab-bar slot="bottom">
     <ion-tab-button tab="home" href="/tabs/home">
-      <!-- <ion-icon aria-hidden="true" name="triangle"></ion-icon> -->
-      <!-- <ion-icon aria-hidden="true" name="selectedTab === 'home' ? 'home' : 'home-outline'"></ion-icon> -->
       <ion-icon aria-hidden="true" [name]="selectedTab === 'home' ? 'home' : 'home-outline'"></ion-icon>
       <!-- <ion-label>Home</ion-label>  -->
     </ion-tab-button>
 
     <ion-tab-button tab="balance" href="/tabs/balance">
-      <!-- <ion-icon aria-hidden="true" name="ellipse"></ion-icon> -->
-      <!-- <ion-icon aria-hidden="true" name="selectedTab === 'balance' ? 'stats-chart' : 'stats-chart-outline'"></ion-icon> -->
       <ion-icon aria-hidden="true" [name]="selectedTab === 'balance' ? 'stats-chart' : 'stats-chart-outline'"></ion-icon>
       <!-- <ion-label>Balance</ion-label> -->
     </ion-tab-button>
 
+    <ion-tab-button tab="history" href="/tabs/history">
+      <ion-icon aria-hidden="true" [name]="selectedTab === 'history' ? 'time' : 'time-outline'"></ion-icon>
+      <!-- <ion-label>Historial</ion-label> -->
+    </ion-tab-button>
+
     <ion-tab-button tab="settings" href="/tabs/settings">
-      <!-- <ion-icon aria-hidden="true" name="square"></ion-icon> -->
-      <!-- <ion-icon aria-hidden="true" name="selectedTab === 'settings' ? 'cog' : 'cog-outline'"></ion-icon> -->
       <ion-icon aria-hidden="true" [name]="selectedTab === 'settings' ? 'cog' : 'cog-outline'"></ion-icon>
       <!-- <ion-label>Ajustes</ion-label> -->
     </ion-tab-button>

@@ -1,0 +1,32 @@
+<ion-header [translucent]="false">
+  <ion-toolbar>
+    <ion-title>Historial</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="history-content">
+  @if (monthsSummaryListItems.length === 0) {
+    <div class="empty-state">
+      <p class="empty-state__title">Aún no registras transacciones</p>
+      <p class="empty-state__subtitle">
+        Cuando agregues transacciones podrás ver tu historial.
+      </p>
+    </div>
+  } @else {
+    <div class="history-container">
+      <div class="history-wrapper">
+        <ion-list lines="none" class="history-list">
+          @for (month of monthsSummaryListItems; track month.monthLabel) {
+            <ion-item class="history-item">
+              <ion-label>
+                <h2>{{ month.monthLabel }}</h2>
+                <p>Ingresos: <span class="income">{{ month.totalIncomeLabel }}</span> | Gastos: <span class="expense">{{ month.totalExpenseLabel }}</span></p>
+                <p>Balance: <span class="balance">{{ month.totalBalanceLabel }}</span></p>
+              </ion-label>
+            </ion-item>
+          }
+        </ion-list>
+      </div>
+    </div>
+  }
+</ion-content>
