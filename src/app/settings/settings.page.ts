@@ -34,7 +34,6 @@ import {
   warningOutline,
 } from 'ionicons/icons';
 import packageInfo from '../../../package.json';
-import { EntryData } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import { FirebaseAuthService, AuthStatus } from '../auth/firebase-auth.service';
 import { environment } from '../../environments/environment';
@@ -160,8 +159,8 @@ export class SettingsPage {
   protected async handleExport(): Promise<void> {
     try {
       await this.withLoader('Exportando transacciones…', async () => {
-        const entries = this.entryService.getEntriesSnapshot();
-        this.downloadEntries(entries);
+        const serializedEntries = this.entryService.serializeEntries();
+        this.downloadEntries(serializedEntries);
       });
       await this.presentToast('Exportación completada.');
     } catch (error) {
@@ -332,11 +331,10 @@ export class SettingsPage {
   /**
    * Creates a downloadable JSON file containing the provided entries.
    *
-   * @param entries Entries to include in the export file.
+   * @param serializedEntries JSON string that describes the entries collection.
    */
-  private downloadEntries(entries: EntryData[]): void {
-    const serialized = JSON.stringify(entries, null, 2);
-    const blob = new Blob([serialized], { type: 'application/json' });
+  private downloadEntries(serializedEntries: string): void {
+    const blob = new Blob([serializedEntries], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const timestamp = new Date()
       .toISOString()

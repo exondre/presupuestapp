@@ -175,6 +175,16 @@ export class EntryService {
   }
 
   /**
+   * Serializes the provided entries (or the current snapshot) into a JSON string used during exports.
+   *
+   * @param entries Optional collection to serialize instead of the current snapshot.
+   * @returns A prettified JSON string that represents the entries collection.
+   */
+  serializeEntries(entries: EntryData[] = this.getEntriesSnapshot()): string {
+    return JSON.stringify(entries, null, 2);
+  }
+
+  /**
    * Persists the provided entries in memory and local storage.
    *
    * @param entries Entries collection to persist.
