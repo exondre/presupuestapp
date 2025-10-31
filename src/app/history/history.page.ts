@@ -9,8 +9,8 @@ import {
   IonList,
   IonTitle,
   IonToolbar,
+  NavController,
 } from '@ionic/angular/standalone';
-import { NavController } from '@ionic/angular/common';
 import { MonthSummaryItem } from '../shared/models/month-summary-item.model';
 import { EntryService } from '../shared/services/entry.service';
 import { UtilsService } from '../shared/services/utils.service';
