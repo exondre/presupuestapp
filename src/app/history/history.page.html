@@ -16,8 +16,13 @@
     <div class="history-container">
       <div class="history-wrapper">
         <ion-list lines="none" class="history-list">
-          @for (month of monthsSummaryListItems; track month.monthLabel) {
-            <ion-item class="history-item">
+          @for (month of monthsSummaryListItems; track month.id) {
+            <ion-item
+              button
+              detail="false"
+              class="history-item"
+              (click)="handleMonthSelected(month)"
+            >
               <ion-label>
                 <h2>{{ month.monthLabel }}</h2>
                 <p>Ingresos: <span class="income">{{ month.totalIncomeLabel }}</span> | Gastos: <span class="expense">{{ month.totalExpenseLabel }}</span></p>

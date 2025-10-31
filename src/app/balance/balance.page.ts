@@ -1,7 +1,10 @@
-import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, signal, ViewChild } from '@angular/core';
-import { AlertController, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar } from '@ionic/angular/standalone';
+import { Component, DestroyRef, computed, CUSTOM_ELEMENTS_SCHEMA, inject, signal, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
+import { NavController } from '@ionic/angular/common';
+import { AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, informationCircleOutline } from 'ionicons/icons';
+import { addOutline, chevronBackOutline, informationCircleOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { EntryCreation, EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
@@ -28,6 +31,8 @@ interface BalanceDayGroup {
     IonHeader,
     IonToolbar,
     IonTitle,
+    IonButtons,
+    IonButton,
     IonContent,
     IonList,
     IonItemGroup,
@@ -81,6 +86,12 @@ export class BalancePage {
 
   private readonly alertController = inject(AlertController);
 
+  private readonly navController = inject(NavController);
+
+  private readonly activatedRoute = inject(ActivatedRoute);
+
+  private readonly destroyRef = inject(DestroyRef);
+
   private readonly referenceMonth = signal<Date | null>(null);
 
   protected readonly filteredEntries = computed(() => {
@@ -120,15 +131,39 @@ export class BalancePage {
       subtitle: this.buildMonthSubtitle(referenceDate),
     };
   });
-  protected readonly monthScopeLabel = computed(() =>
-    this.referenceMonth() ? 'mes seleccionado' : 'mes en curso',
+  protected readonly hasReferenceMonth = computed(
+    () => this.referenceMonth() !== null,
   );
+  protected readonly monthScopeLabel = computed(() =>
+    this.hasReferenceMonth() ? 'mes seleccionado' : 'mes en curso',
+  );
+
+  protected readonly pageTitle = computed(() =>{
+    const referenceMonth = this.referenceMonth();
+    if (!referenceMonth) {
+      return 'Balance';
+    }
+
+    return this.buildMonthSubtitle(referenceMonth);
+  })
 
   constructor() {
     addIcons({
       'information-circle-outline': informationCircleOutline,
       'add-outline': addOutline,
+      'chevron-back-outline': chevronBackOutline,
     });
+
+    this.activatedRoute.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const referenceMonth = this.resolveReferenceMonth(
+          params.get('year'),
+          params.get('month'),
+        );
+
+        this.setReferenceMonth(referenceMonth);
+      });
   }
 
   /**
@@ -194,6 +229,13 @@ export class BalancePage {
 
     modal.setPresetType(type);
     modal.open();
+  }
+
+  /**
+   * Navigates back to the previous view on the navigation stack.
+   */
+  protected handleNavigateBack(): void {
+    this.navController.pop();
   }
 
   /**
@@ -307,6 +349,34 @@ export class BalancePage {
       key: `${year}-${month}-${day}`,
       label: `${weekday} ${day} ${monthName} ${year}`,
     };
+  }
+
+  /**
+   * Resolves the reference month from the provided query parameter values.
+   *
+   * @param yearParam Query parameter containing the year.
+   * @param monthParam Query parameter containing the month index starting at 1.
+   * @returns A date representing the reference month or null when the parameters are invalid.
+   */
+  private resolveReferenceMonth(
+    yearParam: string | null,
+    monthParam: string | null,
+  ): Date | null {
+    if (!yearParam || !monthParam) {
+      return null;
+    }
+
+    const year = Number.parseInt(yearParam, 10);
+    const month = Number.parseInt(monthParam, 10);
+    if (Number.isNaN(year) || Number.isNaN(month)) {
+      return null;
+    }
+
+    if (month < 1 || month > 12) {
+      return null;
+    }
+
+    return new Date(year, month - 1, 1);
   }
 
   /**

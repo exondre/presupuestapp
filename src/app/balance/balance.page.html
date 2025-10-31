@@ -1,6 +1,21 @@
 <ion-header [translucent]="false">
   <ion-toolbar>
-    <ion-title>Balance</ion-title>
+    @if (hasReferenceMonth()) {
+      <ion-buttons slot="start">
+        <ion-button
+          fill="clear"
+          (click)="handleNavigateBack()"
+          aria-label="Volver al historial"
+        >
+          <ion-icon
+            slot="icon-only"
+            name="chevron-back-outline"
+            aria-hidden="true"
+          ></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    }
+    <ion-title>{{ pageTitle() }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
