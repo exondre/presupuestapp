@@ -13,7 +13,8 @@
       </p>
     </div>
   } @else {
-    @let summary = currentMonthSummary();
+    @let summary = displayedMonthSummary();
+    @let scopeLabel = monthScopeLabel();
     <swiper-container
       class="balance-summary"
       slides-per-view="1"
@@ -43,7 +44,7 @@
               aria-hidden="true"
               class="balance-summary-card__icon"
             ></ion-icon>
-            <span>Esto es lo que has recibido este mes.</span>
+            <span>Esto es lo que has recibido en el {{ scopeLabel }}.</span>
           </ion-card-content>
         </ion-card>
       </swiper-slide>
@@ -67,7 +68,7 @@
               aria-hidden="true"
               class="balance-summary-card__icon"
             ></ion-icon>
-            <span>Esto es lo que has gastado este mes.</span>
+            <span>Esto es lo que has gastado en el {{ scopeLabel }}.</span>
           </ion-card-content>
         </ion-card>
       </swiper-slide>
@@ -91,7 +92,7 @@
               aria-hidden="true"
               class="balance-summary-card__icon"
             ></ion-icon>
-            <span>Esto es la suma de tus gastos e ingresos.</span>
+            <span>Esto es la suma de tus gastos e ingresos del {{ scopeLabel }}.</span>
           </ion-card-content>
         </ion-card>
       </swiper-slide>

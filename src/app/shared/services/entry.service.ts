@@ -87,6 +87,28 @@ export class EntryService {
   }
 
   /**
+   * Filters entries to include only those that belong to the month containing the reference date.
+   *
+   * @param referenceDate Date used to determine the target month.
+   * @returns The entries that occur within the reference month.
+   */
+  filterEntriesByMonth(
+    referenceDate: Date = new Date()
+  ): EntryData[] {
+    const entries = this.entriesSignal();
+    const referenceKey = this.buildMonthKey(referenceDate);
+
+    return entries.filter((entry) => {
+      const occurrenceDate = new Date(entry.date);
+      if (Number.isNaN(occurrenceDate.getTime())) {
+        return false;
+      }
+
+      return this.buildMonthKey(occurrenceDate) === referenceKey;
+    });
+  }
+
+  /**
    * Adds a new entry to the in-memory collection and persists it.
    *
    * @param entry Entry data to store.

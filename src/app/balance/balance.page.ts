@@ -1,5 +1,4 @@
-import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, ViewChild } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, signal, ViewChild } from '@angular/core';
 import { AlertController, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addOutline, informationCircleOutline } from 'ionicons/icons';
@@ -82,33 +81,48 @@ export class BalancePage {
 
   private readonly alertController = inject(AlertController);
 
-  private readonly entries = toSignal(this.entryService.entries$, {
-    initialValue: [],
+  private readonly referenceMonth = signal<Date | null>(null);
+
+  protected readonly filteredEntries = computed(() => {
+    const entries = this.entryService.entriesSignal();
+    const referenceMonth = this.referenceMonth();
+    if (!referenceMonth) {
+      return entries;
+    }
+
+    return this.entryService.filterEntriesByMonth(referenceMonth);
   });
 
-  protected readonly groups = computed(() => this.buildGroups(this.entries()));
-  protected readonly currentMonthSummary = computed(() => {
-    const today = new Date();
+  protected readonly groups = computed(() =>
+    this.buildGroups(this.filteredEntries()),
+  );
+  protected readonly displayedMonthSummary = computed(() => {
+    const entries = this.entryService.entriesSignal();
+    const referenceDate = this.referenceMonth() ?? new Date();
+
     const expensesTotal = this.entryService.calculateMonthlyExpenseTotal(
-      this.entries(),
-      today,
+      entries,
+      referenceDate,
     );
     const incomesTotal = this.entryService.calculateMonthlyIncomeTotal(
-      this.entries(),
-      today,
+      entries,
+      referenceDate,
     );
     const monthlyBalance = this.entryService.calculateMonthlyBalance(
-      this.entries(),
-      today,
+      entries,
+      referenceDate,
     );
 
     return {
       expensesLabel: this.formatAmount(expensesTotal),
       incomesLabel: this.formatAmount(incomesTotal),
       balanceLabel: this.formatAmount(monthlyBalance),
-      subtitle: this.buildMonthSubtitle(today),
+      subtitle: this.buildMonthSubtitle(referenceDate),
     };
   });
+  protected readonly monthScopeLabel = computed(() =>
+    this.referenceMonth() ? 'mes seleccionado' : 'mes en curso',
+  );
 
   constructor() {
     addIcons({
@@ -180,6 +194,26 @@ export class BalancePage {
 
     modal.setPresetType(type);
     modal.open();
+  }
+
+  /**
+   * Updates the reference month used to render the balance.
+   *
+   * @param referenceMonth Month used as reference or null to fall back to the current month.
+   */
+  public setReferenceMonth(referenceMonth: Date | null): void {
+    if (!referenceMonth) {
+      this.referenceMonth.set(null);
+      return;
+    }
+
+    const normalizedReference = new Date(referenceMonth);
+    if (Number.isNaN(normalizedReference.getTime())) {
+      this.referenceMonth.set(null);
+      return;
+    }
+
+    this.referenceMonth.set(normalizedReference);
   }
 
   /**
