@@ -1,3 +1,7 @@
+ion-title {
+  text-transform: capitalize;
+}
+
 .balance-content {
   // --background: var(--ion-color-light);
   background: var(--ion-item-background, var(--ion-background-color, #fff));

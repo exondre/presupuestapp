@@ -1,6 +1,11 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { EntryCreation, EntryData, EntryType } from '../models/entry-data.model';
+import {
+  EntryCreation,
+  EntryData,
+  EntryType,
+} from '../models/entry-data.model';
+import { MonthSummaryItem } from '../models/month-summary-item.model';
 import { LocalStorageService } from './local-storage.service';
 
 type StoredEntry = Partial<EntryData> & {
@@ -24,7 +29,7 @@ export class EntryService {
   private readonly localStorageService = inject(LocalStorageService);
 
   private readonly entriesSubject = new BehaviorSubject<EntryData[]>(
-    this.restoreEntriesFromStorage(),
+    this.restoreEntriesFromStorage()
   );
   private readonly monthKeyFormatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: EntryService.chileTimeZone,
@@ -33,6 +38,7 @@ export class EntryService {
   });
 
   readonly entries$ = this.entriesSubject.asObservable();
+  readonly entriesSignal = signal<EntryData[]>(this.entriesSubject.value);
 
   /**
    * Calculates the total amount of expense entries for the month that contains the reference date.
@@ -43,12 +49,12 @@ export class EntryService {
    */
   calculateMonthlyExpenseTotal(
     entries: EntryData[],
-    referenceDate: Date = new Date(),
+    referenceDate: Date = new Date()
   ): number {
     return this.calculateMonthlyTotalForType(
       entries,
       EntryType.EXPENSE,
-      referenceDate,
+      referenceDate
     );
   }
 
@@ -61,23 +67,45 @@ export class EntryService {
    */
   calculateMonthlyIncomeTotal(
     entries: EntryData[],
-    referenceDate: Date = new Date(),
+    referenceDate: Date = new Date()
   ): number {
     return this.calculateMonthlyTotalForType(
       entries,
       EntryType.INCOME,
-      referenceDate,
+      referenceDate
     );
   }
 
   calculateMonthlyBalance(
     entries: EntryData[],
-    referenceDate: Date = new Date(),
+    referenceDate: Date = new Date()
   ): number {
     const income = this.calculateMonthlyIncomeTotal(entries, referenceDate);
     const expense = this.calculateMonthlyExpenseTotal(entries, referenceDate);
 
     return income - expense;
+  }
+
+  /**
+   * Filters entries to include only those that belong to the month containing the reference date.
+   *
+   * @param referenceDate Date used to determine the target month.
+   * @returns The entries that occur within the reference month.
+   */
+  filterEntriesByMonth(
+    referenceDate: Date = new Date()
+  ): EntryData[] {
+    const entries = this.entriesSignal();
+    const referenceKey = this.buildMonthKey(referenceDate);
+
+    return entries.filter((entry) => {
+      const occurrenceDate = new Date(entry.date);
+      if (Number.isNaN(occurrenceDate.getTime())) {
+        return false;
+      }
+
+      return this.buildMonthKey(occurrenceDate) === referenceKey;
+    });
   }
 
   /**
@@ -107,7 +135,7 @@ export class EntryService {
   removeEntry(entryId: string): void {
     const currentEntries = this.entriesSubject.value;
     const updatedEntries = currentEntries.filter(
-      (entry) => entry.id !== entryId,
+      (entry) => entry.id !== entryId
     );
 
     if (updatedEntries.length === currentEntries.length) {
@@ -153,6 +181,7 @@ export class EntryService {
    */
   private persistEntries(entries: EntryData[]): void {
     this.entriesSubject.next(entries);
+    this.entriesSignal.set(entries);
     this.localStorageService.setItem(EntryService.storageKey, entries);
   }
 
@@ -167,7 +196,7 @@ export class EntryService {
   private calculateMonthlyTotalForType(
     entries: EntryData[],
     type: EntryType,
-    referenceDate: Date,
+    referenceDate: Date
   ): number {
     const referenceKey = this.buildMonthKey(referenceDate);
     return entries.reduce((total, entry) => {
@@ -197,7 +226,7 @@ export class EntryService {
     const parts = new Map(
       this.monthKeyFormatter
         .formatToParts(date)
-        .map((part) => [part.type, part.value]),
+        .map((part) => [part.type, part.value])
     );
     const year = parts.get('year') ?? '0000';
     const month = parts.get('month') ?? '01';
@@ -212,7 +241,7 @@ export class EntryService {
   private restoreEntriesFromStorage(): EntryData[] {
     const storedEntries =
       this.localStorageService.getItem<StoredEntry[]>(
-        EntryService.storageKey,
+        EntryService.storageKey
       ) ?? [];
 
     if (!Array.isArray(storedEntries)) {
@@ -234,10 +263,7 @@ export class EntryService {
     });
 
     if (requiresPersistence) {
-      this.localStorageService.setItem(
-        EntryService.storageKey,
-        normalized,
-      );
+      this.localStorageService.setItem(EntryService.storageKey, normalized);
     }
 
     return normalized;
@@ -250,7 +276,7 @@ export class EntryService {
    * @returns The normalized entry and whether it required fixing.
    */
   private normalizeStoredEntry(
-    entry: StoredEntry,
+    entry: StoredEntry
   ): { entry: EntryData; requiresSync: boolean } | null {
     if (!entry || typeof entry !== 'object') {
       return null;
@@ -260,13 +286,10 @@ export class EntryService {
     const { normalizedDate, requiresSync: dateRequiresSync } =
       this.normalizeDate(entry.date);
     const rawDescription =
-      typeof entry.description === 'string'
-        ? entry.description.trim()
-        : '';
-    const description =
-      rawDescription.length > 0 ? rawDescription : undefined;
+      typeof entry.description === 'string' ? entry.description.trim() : '';
+    const description = rawDescription.length > 0 ? rawDescription : undefined;
     const { type, requiresSync: typeRequiresSync } = this.normalizeType(
-      entry.type,
+      entry.type
     );
 
     const id =
@@ -310,9 +333,10 @@ export class EntryService {
    * @param value Date value retrieved from storage.
    * @returns The normalized date and whether a fix was applied.
    */
-  private normalizeDate(
-    value: unknown,
-  ): { normalizedDate: string; requiresSync: boolean } {
+  private normalizeDate(value: unknown): {
+    normalizedDate: string;
+    requiresSync: boolean;
+  } {
     if (typeof value === 'string') {
       const parsed = new Date(value);
       if (!Number.isNaN(parsed.getTime())) {
@@ -329,9 +353,10 @@ export class EntryService {
    * @param value Entry type retrieved from storage or provided by the caller.
    * @returns The normalized type and whether a fix was applied.
    */
-  private normalizeType(
-    value: unknown,
-  ): { type: EntryType; requiresSync: boolean } {
+  private normalizeType(value: unknown): {
+    type: EntryType;
+    requiresSync: boolean;
+  } {
     if (value === EntryType.EXPENSE || value === EntryType.INCOME) {
       return { type: value, requiresSync: false };
     }
@@ -388,8 +413,9 @@ export class EntryService {
     }
 
     if (rawData && typeof rawData === 'object') {
-      const candidate = (rawData as { entries?: unknown; expenses?: unknown }).entries
-        ?? (rawData as { entries?: unknown; expenses?: unknown }).expenses;
+      const candidate =
+        (rawData as { entries?: unknown; expenses?: unknown }).entries ??
+        (rawData as { entries?: unknown; expenses?: unknown }).expenses;
       if (Array.isArray(candidate)) {
         this.ensureEveryEntryIsObject(candidate);
         return candidate as StoredEntry[];
@@ -406,10 +432,60 @@ export class EntryService {
    */
   private ensureEveryEntryIsObject(items: unknown[]): void {
     const hasInvalid = items.some(
-      (item) => item === null || typeof item !== 'object',
+      (item) => item === null || typeof item !== 'object'
     );
     if (hasInvalid) {
       throw new Error('Invalid entry detected during import.');
     }
   }
+
+  readonly monthsHistory = computed((): MonthSummaryItem[] => {
+    const entries = this.entriesSignal();
+    const monthsSummary: MonthSummaryItem[] = [];
+
+    // get unique months from entries
+    const monthSet = new Set<string>();
+    entries.forEach((entry) => {
+      const date = new Date(entry.date);
+      const monthKey = this.buildMonthKey(date);
+      monthSet.add(monthKey);
+    });
+
+    monthSet.forEach((monthKey) => {
+      const [yearStr, monthStr] = monthKey.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+
+      const totalIncome = this.calculateMonthlyIncomeTotal(
+        entries,
+        new Date(year, month - 1)
+      );
+      const totalExpense = this.calculateMonthlyExpenseTotal(
+        entries,
+        new Date(year, month - 1)
+      );
+      const totalBalance = this.calculateMonthlyBalance(
+        entries,
+        new Date(year, month - 1)
+      );
+
+      monthsSummary.push({
+        month,
+        year,
+        totalIncome,
+        totalExpense,
+        totalBalance,
+      });
+    });
+
+    // sort by year and month descending
+    monthsSummary.sort((a, b) => {
+      if (a.year !== b.year) {
+        return b.year - a.year;
+      }
+      return b.month - a.month;
+    });
+
+    return monthsSummary;
+  });
 }
