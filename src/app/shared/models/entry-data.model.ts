@@ -18,12 +18,15 @@ export interface EntryData {
   type: EntryType;
   description?: string;
   updatedAt?: string;
+  recurrence?: EntryRecurrence;
 }
 
 /**
  * Represents the payload required to create a new entry.
  */
-export type EntryCreation = Omit<EntryData, 'id'>;
+export type EntryCreation = Omit<EntryData, 'id' | 'recurrence'> & {
+  recurrence?: EntryRecurrenceCreation;
+};
 
 /**
  * Represents the payload emitted when updating an existing entry through the UI.
@@ -33,4 +36,39 @@ export interface EntryUpdatePayload {
   amount: number;
   date: string;
   description?: string;
+}
+
+/**
+ * Enumerates the supported recurrence frequencies.
+ */
+export type EntryRecurrenceFrequency = 'monthly';
+
+/**
+ * Defines the termination rules for a recurring entry.
+ */
+export type EntryRecurrenceTermination =
+  | {
+      mode: 'indefinite';
+    }
+  | {
+      mode: 'occurrences';
+      total: number;
+    };
+
+/**
+ * Represents a recurrence definition when creating a new entry.
+ */
+export interface EntryRecurrenceCreation {
+  frequency: EntryRecurrenceFrequency;
+  termination: EntryRecurrenceTermination;
+}
+
+/**
+ * Represents the recurrence metadata stored alongside an entry.
+ */
+export interface EntryRecurrence extends EntryRecurrenceCreation {
+  recurrenceId: string;
+  anchorDate: string;
+  occurrenceIndex: number;
+  excludedOccurrences?: number[];
 }

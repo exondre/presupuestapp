@@ -22,6 +22,7 @@ import {
   IonContent,
   IonDatetime,
   IonHeader,
+  IonIcon,
   IonInput,
   IonItem,
   IonLabel,
@@ -29,6 +30,9 @@ import {
   IonModal,
   IonSegment,
   IonSegmentButton,
+  IonSelect,
+  IonSelectOption,
+  IonText,
   IonTextarea,
   IonTitle,
   IonToolbar,
@@ -36,9 +40,14 @@ import {
 import {
   EntryCreation,
   EntryData,
+  EntryRecurrenceCreation,
   EntryType,
   EntryUpdatePayload,
 } from '../../models/entry-data.model';
+import { addIcons } from 'ionicons';
+import { informationCircleOutline } from 'ionicons/icons';
+
+type RecurrenceFormMode = 'none' | 'indefinite' | 'occurrences';
 
 @Component({
   selector: 'app-new-entry-modal',
@@ -54,13 +63,17 @@ import {
     IonButton,
     IonContent,
     IonList,
+    IonIcon,
     IonItem,
     IonLabel,
     IonInput,
+    IonText,
     IonTextarea,
     IonDatetime,
     IonSegment,
     IonSegmentButton,
+    IonSelect,
+    IonSelectOption,
     ReactiveFormsModule,
   ],
 })
@@ -90,6 +103,8 @@ export class NewEntryModalComponent implements AfterViewInit {
   private editingEntry: EntryData | null = null;
 
   protected isTypeReadOnly = false;
+  protected isRecurrenceReadOnly = false;
+  protected recurrenceEndHint: string | null = null;
 
   protected modalTitle = 'Nueva transacción';
 
@@ -98,6 +113,8 @@ export class NewEntryModalComponent implements AfterViewInit {
     description: [''],
     date: [this.createCurrentChileIsoDate(), [Validators.required]],
     type: [EntryType.EXPENSE, [Validators.required]],
+    recurrenceMode: ['none' as RecurrenceFormMode, [Validators.required]],
+    recurrenceCount: [{ value: '', disabled: true }],
   });
 
   protected isOpen = false;
@@ -112,8 +129,20 @@ export class NewEntryModalComponent implements AfterViewInit {
 
   private static readonly chileTimeZone = 'America/Santiago';
 
+  private readonly monthLabelFormatter = new Intl.DateTimeFormat('es-CL', {
+    timeZone: NewEntryModalComponent.chileTimeZone,
+    month: 'long',
+    year: 'numeric',
+  });
+
   constructor() {
+    addIcons({
+          'information-circle-outline': informationCircleOutline
+        });
+
     this.setupAmountFormatter();
+    this.setupRecurrenceControls();
+
   }
 
   /**
@@ -144,6 +173,7 @@ export class NewEntryModalComponent implements AfterViewInit {
     this.isEditMode = false;
     this.editingEntry = null;
     this.isTypeReadOnly = false;
+    this.isRecurrenceReadOnly = false;
     this.manualPresetType = null;
     this.currentPresetType = presetType ?? null;
     this.modalTitle = this.buildModalTitle(this.currentPresetType);
@@ -162,6 +192,7 @@ export class NewEntryModalComponent implements AfterViewInit {
     this.editingEntry = entry;
     this.currentPresetType = entry.type;
     this.isTypeReadOnly = true;
+    this.isRecurrenceReadOnly = true;
     this.modalTitle = this.buildEditModalTitle(entry.type);
     this.resetForm();
     this.populateFormForEdit(entry);
@@ -228,6 +259,12 @@ export class NewEntryModalComponent implements AfterViewInit {
     const normalizedType = this.normalizeFormType(type);
     const normalizedDescription = this.normalizeDescription(description);
     const normalizedDate = this.normalizeDateToUtcIso(date);
+    const recurrence = this.isEditMode
+      ? undefined
+      : this.resolveRecurrencePayload(
+          this.recurrenceModeControl.getRawValue(),
+          this.recurrenceCountControl.getRawValue()
+        );
 
     if (this.isEditMode && this.editingEntry) {
       this.hasSavedCurrentForm = true;
@@ -247,12 +284,18 @@ export class NewEntryModalComponent implements AfterViewInit {
     this.prepareToBypassDismissGuard();
     this.isOpen = false;
 
-    this.entrySaved.emit({
+    const creationPayload: EntryCreation = {
       amount: parsedAmount,
       date: normalizedDate,
       description: normalizedDescription,
       type: normalizedType,
-    });
+    };
+
+    if (recurrence) {
+      creationPayload.recurrence = recurrence;
+    }
+
+    this.entrySaved.emit(creationPayload);
   }
 
   /**
@@ -268,6 +311,8 @@ export class NewEntryModalComponent implements AfterViewInit {
     this.currentPresetType = null;
     this.modalTitle = this.buildModalTitle(null);
     this.isTypeReadOnly = false;
+    this.isRecurrenceReadOnly = false;
+    this.recurrenceEndHint = null;
   }
 
   /**
@@ -392,17 +437,22 @@ export class NewEntryModalComponent implements AfterViewInit {
    */
   private resetForm(): void {
     this.form.controls.type.enable({ emitEvent: false });
+    this.recurrenceModeControl.enable({ emitEvent: false });
     this.form.setValue(
       {
         amount: '',
         description: '',
         date: this.createCurrentChileIsoDate(),
         type: this.determineInitialType(),
+        recurrenceMode: 'none',
+        recurrenceCount: '',
       },
       { emitEvent: false }
     );
+    this.disableRecurrenceCountControl();
     this.form.markAsPristine();
     this.form.markAsUntouched();
+    this.updateRecurrenceEndHint();
   }
 
   /**
@@ -412,18 +462,25 @@ export class NewEntryModalComponent implements AfterViewInit {
    */
   private populateFormForEdit(entry: EntryData): void {
     const chileDate = this.convertDateToChileIso(new Date(entry.date));
+    const recurrenceMode = this.resolveRecurrenceMode(entry);
+    const recurrenceCount = this.resolveRecurrenceCount(entry);
     this.form.setValue(
       {
         amount: this.formatAmount(String(entry.amount)),
         description: entry.description ?? '',
         date: chileDate,
         type: entry.type,
+        recurrenceMode,
+        recurrenceCount,
       },
       { emitEvent: false }
     );
     this.form.controls.type.disable({ emitEvent: false });
+    this.recurrenceModeControl.disable({ emitEvent: false });
+    this.recurrenceCountControl.disable({ emitEvent: false });
     this.form.markAsPristine();
     this.form.markAsUntouched();
+    this.updateRecurrenceEndHint();
   }
 
   /**
@@ -536,6 +593,86 @@ export class NewEntryModalComponent implements AfterViewInit {
   }
 
   /**
+   * Builds the recurrence payload to emit when creating a new entry.
+   *
+   * @param mode Recurrence mode selected in the form.
+   * @param occurrences Raw occurrences value captured from the form.
+   * @returns The recurrence payload or undefined when no recurrence applies.
+   */
+  private resolveRecurrencePayload(
+    mode: RecurrenceFormMode,
+    occurrences: string
+  ): EntryRecurrenceCreation | undefined {
+    if (mode === 'indefinite') {
+      return {
+        frequency: 'monthly',
+        termination: { mode: 'indefinite' },
+      };
+    }
+
+    if (mode === 'occurrences') {
+      const digits = this.normalizeDigits(this.sanitizeAmount(occurrences));
+      if (digits.length === 0) {
+        return undefined;
+      }
+
+      const total = Number.parseInt(digits, 10);
+      if (Number.isNaN(total) || total < 1) {
+        return undefined;
+      }
+
+      return {
+        frequency: 'monthly',
+        termination: { mode: 'occurrences', total },
+      };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Determines the recurrence mode represented by the provided entry.
+   *
+   * @param entry Entry used to derive the recurrence mode.
+   * @returns The recurrence mode compatible with the form representation.
+   */
+  private resolveRecurrenceMode(entry: EntryData): RecurrenceFormMode {
+    const recurrence = entry.recurrence;
+    if (!recurrence || recurrence.frequency !== 'monthly') {
+      return 'none';
+    }
+
+    if (recurrence.termination.mode === 'indefinite') {
+      return 'indefinite';
+    }
+
+    if (recurrence.termination.mode === 'occurrences') {
+      return 'occurrences';
+    }
+
+    return 'none';
+  }
+
+  /**
+   * Determines the recurrence count associated with the provided entry.
+   *
+   * @param entry Entry used to derive the recurrence count.
+   * @returns The recurrence count string representation.
+   */
+  private resolveRecurrenceCount(entry: EntryData): string {
+    const recurrence = entry.recurrence;
+    if (!recurrence || recurrence.frequency !== 'monthly') {
+      return '';
+    }
+
+    if (recurrence.termination.mode === 'occurrences') {
+      return String(recurrence.termination.total);
+    }
+
+    return '';
+  }
+
+  /**
    * Configures the formatter used by the amount input to keep the display value in sync.
    */
   private setupAmountFormatter(): void {
@@ -554,6 +691,41 @@ export class NewEntryModalComponent implements AfterViewInit {
   }
 
   /**
+   * Configures the recurrence controls to react to user selections.
+   */
+  private setupRecurrenceControls(): void {
+    this.recurrenceModeControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((mode) => {
+        if (mode === 'occurrences') {
+          if (this.isRecurrenceReadOnly) {
+            this.recurrenceCountControl.disable({ emitEvent: false });
+          } else {
+            this.enableRecurrenceCountControl();
+          }
+        } else {
+          this.disableRecurrenceCountControl(!this.isRecurrenceReadOnly);
+        }
+
+        this.updateRecurrenceEndHint();
+      });
+
+    this.recurrenceCountControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.updateRecurrenceEndHint();
+      });
+
+    this.form.controls.date.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.updateRecurrenceEndHint();
+      });
+
+    this.updateRecurrenceEndHint();
+  }
+
+  /**
    * Provides access to the amount form control.
    *
    * @returns The amount form control instance.
@@ -563,12 +735,123 @@ export class NewEntryModalComponent implements AfterViewInit {
   }
 
   /**
+   * Provides access to the recurrence mode form control.
+   *
+   * @returns The recurrence mode control.
+   */
+  private get recurrenceModeControl(): FormControl<RecurrenceFormMode> {
+    return this.form.controls.recurrenceMode as FormControl<RecurrenceFormMode>;
+  }
+
+  /**
+   * Provides access to the recurrence count form control.
+   *
+   * @returns The recurrence count control.
+   */
+  private get recurrenceCountControl(): FormControl<string> {
+    return this.form.controls.recurrenceCount as FormControl<string>;
+  }
+
+  /**
+   * Enables the recurrence count control and applies validation rules.
+   */
+  private enableRecurrenceCountControl(): void {
+    const control = this.recurrenceCountControl;
+    control.enable({ emitEvent: false });
+    control.setValidators([Validators.required, Validators.pattern(/^[1-9]\d*$/)]);
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /**
+   * Disables the recurrence count control optionally clearing its value.
+   *
+   * @param resetValue Indicates whether the control value should be cleared.
+   */
+  private disableRecurrenceCountControl(resetValue: boolean = true): void {
+    const control = this.recurrenceCountControl;
+    if (resetValue) {
+      control.setValue('', { emitEvent: false });
+    }
+    control.disable({ emitEvent: false });
+    control.clearValidators();
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /**
+   * Refreshes the recurrence end hint displayed to the user.
+   */
+  private updateRecurrenceEndHint(): void {
+    console.debug('Updating recurrence end hint.');
+    this.recurrenceEndHint = this.buildRecurrenceEndHint();
+    console.debug('Recurrence end hint updated:', this.recurrenceEndHint);
+  }
+
+  /**
+   * Builds the recurrence end hint when the user selects a limited number of occurrences.
+   *
+   * @returns The user-facing hint string or null when not applicable.
+   */
+  private buildRecurrenceEndHint(): string | null {
+    if (this.recurrenceModeControl.getRawValue() !== 'occurrences') {
+      return null;
+    }
+
+    const sanitizedCount = this.sanitizeAmount(
+      this.recurrenceCountControl.getRawValue()
+    );
+    if (sanitizedCount.length === 0) {
+      return null;
+    }
+
+    const digits = this.normalizeDigits(sanitizedCount);
+    if (digits.length === 0) {
+      return null;
+    }
+
+    const total = Number.parseInt(digits, 10);
+    if (!Number.isFinite(total) || total < 1) {
+      return null;
+    }
+
+    const rawDate = this.form.controls.date.getRawValue();
+    if (!rawDate) {
+      return null;
+    }
+
+    const start = new Date(rawDate);
+    if (Number.isNaN(start.getTime())) {
+      return null;
+    }
+
+    const lastOccurrence = this.addMonths(start, total - 1);
+    const label = this.monthLabelFormatter.format(lastOccurrence);
+    return `${label}`;
+  }
+
+  /**
+   * Adds the specified number of months to a date.
+   *
+   * @param date Base date used for the calculation.
+   * @param months Number of months to add.
+   * @returns A new Date instance with the months added.
+   */
+  private addMonths(date: Date, months: number): Date {
+    const result = new Date(date);
+    result.setUTCMonth(result.getUTCMonth() + months);
+    return result;
+  }
+
+  /**
    * Removes every non-digit character from the provided value.
    *
    * @param value Amount value entered by the user.
    * @returns A string containing only digits.
    */
   private sanitizeAmount(value: string | null | undefined): string {
+    if (typeof value === 'number') {
+      return String(value);
+    }
+
     return (value ?? '').replace(/\D/g, '');
   }
 

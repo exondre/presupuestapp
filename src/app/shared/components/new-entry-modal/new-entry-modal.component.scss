@@ -38,3 +38,37 @@ ion-modal.new-entry-modal {
   min-width: 0;
   --width: 100%;
 }
+
+.recurrence-hint {
+  margin-top: 0.2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+
+  p {
+    margin: 0;
+    line-height: 1.4;
+
+    .spinner-text {
+      color: var(--ion-color-primary);
+      display: inline-block;
+      transition: opacity 0.3s;
+      will-change: opacity;
+      animation: flip 0.6s ease;
+      transform-origin: center;
+    }
+
+    @keyframes flip {
+      0% { transform: rotateX(90deg); opacity: 0; }
+      50% { transform: rotateX(0deg); opacity: 1; }
+      100% { transform: rotateX(0deg); opacity: 1; }
+    }
+  }
+
+  &__icon {
+    font-size: 1.1rem;
+    // margin-top: 0.2rem;
+  }
+}
