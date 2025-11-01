@@ -13,6 +13,7 @@ type StoredEntry = Partial<EntryData> & {
   date?: string;
   description?: string;
   type?: EntryType | string;
+  updatedAt?: string;
 };
 
 /**
@@ -121,9 +122,60 @@ export class EntryService {
       date: entry.date,
       description: entry.description,
       type,
+      updatedAt: new Date().toISOString(),
     };
 
     const updatedEntries = [...this.entriesSubject.value, newEntry];
+    this.persistEntries(updatedEntries);
+  }
+
+  /**
+   * Updates the entry matching the provided identifier with the supplied changes.
+   *
+   * @param entryId Identifier of the entry to update.
+   * @param updates Partial data to merge into the existing entry.
+   */
+  updateEntry(
+    entryId: string,
+    updates: Partial<Omit<EntryData, 'id'>> & { type?: EntryType | string }
+  ): void {
+    const currentEntries = this.entriesSubject.value;
+    const entryIndex = currentEntries.findIndex((entry) => entry.id === entryId);
+
+    if (entryIndex === -1) {
+      return;
+    }
+
+    const currentEntry = currentEntries[entryIndex];
+    const candidate: StoredEntry = {
+      ...currentEntry,
+      ...updates,
+      id: currentEntry.id,
+    };
+
+    const normalized = this.normalizeStoredEntry(candidate);
+    if (!normalized) {
+      return;
+    }
+
+    const updatedEntry = normalized.entry;
+    const isUnchanged =
+      updatedEntry.amount === currentEntry.amount &&
+      updatedEntry.date === currentEntry.date &&
+      updatedEntry.description === currentEntry.description &&
+      updatedEntry.type === currentEntry.type;
+
+    if (isUnchanged) {
+      return;
+    }
+
+    const patchedEntry: EntryData = {
+      ...updatedEntry,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedEntries = [...currentEntries];
+    updatedEntries[entryIndex] = patchedEntry;
     this.persistEntries(updatedEntries);
   }
 
@@ -301,6 +353,13 @@ export class EntryService {
     const { type, requiresSync: typeRequiresSync } = this.normalizeType(
       entry.type
     );
+    let updatedAt: string | undefined;
+    let updatedAtRequiresSync = false;
+    if (entry.updatedAt !== undefined) {
+      const result = this.normalizeDate(entry.updatedAt);
+      updatedAt = result.normalizedDate;
+      updatedAtRequiresSync = result.requiresSync;
+    }
 
     const id =
       typeof entry.id === 'string' && entry.id.trim().length > 0
@@ -308,7 +367,10 @@ export class EntryService {
         : this.generateId();
 
     const requiresSync =
-      dateRequiresSync || id !== entry.id || typeRequiresSync;
+      dateRequiresSync ||
+      id !== entry.id ||
+      typeRequiresSync ||
+      updatedAtRequiresSync;
 
     return {
       entry: {
@@ -317,6 +379,7 @@ export class EntryService {
         date: normalizedDate,
         description,
         type,
+        updatedAt,
       },
       requiresSync,
     };

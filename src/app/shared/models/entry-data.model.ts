@@ -17,6 +17,7 @@ export interface EntryData {
   date: string;
   type: EntryType;
   description?: string;
+  updatedAt?: string;
 }
 
 /**
