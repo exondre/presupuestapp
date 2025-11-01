@@ -5,7 +5,7 @@ import { AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCar
 import { addIcons } from 'ionicons';
 import { addOutline, chevronBackOutline, informationCircleOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
-import { EntryCreation, EntryData, EntryType } from '../shared/models/entry-data.model';
+import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import {
   BalanceItemComponent,
@@ -198,12 +198,24 @@ export class BalancePage {
   }
 
   /**
-   * Placeholder for the upcoming edit functionality.
+   * Opens the entry modal in edit mode for the specified entry.
    *
    * @param entryId Identifier of the entry to edit.
    */
   protected handleEditEntry(entryId: string): void {
-    void entryId;
+    const modal = this.modal;
+    if (!modal) {
+      return;
+    }
+
+    const entry = this.entryService
+      .entriesSignal()
+      .find((item) => item.id === entryId);
+    if (!entry) {
+      return;
+    }
+
+    modal.openForEdit(entry);
   }
 
   /**
@@ -213,6 +225,19 @@ export class BalancePage {
    */
   protected handleEntrySaved(entry: EntryCreation): void {
     this.entryService.addEntry(entry);
+  }
+
+  /**
+   * Receives the data emitted when an entry has been edited.
+   *
+   * @param payload Entry data modifications captured through the modal.
+   */
+  protected handleEntryUpdated(payload: EntryUpdatePayload): void {
+    this.entryService.updateEntry(payload.id, {
+      amount: payload.amount,
+      date: payload.date,
+      description: payload.description,
+    });
   }
 
   /**

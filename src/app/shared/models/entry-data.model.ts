@@ -24,3 +24,13 @@ export interface EntryData {
  * Represents the payload required to create a new entry.
  */
 export type EntryCreation = Omit<EntryData, 'id'>;
+
+/**
+ * Represents the payload emitted when updating an existing entry through the UI.
+ */
+export interface EntryUpdatePayload {
+  id: string;
+  amount: number;
+  date: string;
+  description?: string;
+}

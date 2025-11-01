@@ -33,7 +33,12 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular/standalone';
-import { EntryCreation, EntryType } from '../../models/entry-data.model';
+import {
+  EntryCreation,
+  EntryData,
+  EntryType,
+  EntryUpdatePayload,
+} from '../../models/entry-data.model';
 
 @Component({
   selector: 'app-new-entry-modal',
@@ -61,6 +66,7 @@ import { EntryCreation, EntryType } from '../../models/entry-data.model';
 })
 export class NewEntryModalComponent implements AfterViewInit {
   protected readonly entrySaved = output<EntryCreation>();
+  protected readonly entryUpdated = output<EntryUpdatePayload>();
   protected readonly entryType = EntryType;
   readonly presetType = input<EntryType | null>(null);
 
@@ -80,8 +86,10 @@ export class NewEntryModalComponent implements AfterViewInit {
 
   private currentPresetType: EntryType | null = null;
   private manualPresetType: EntryType | null = null;
+  private isEditMode = false;
+  private editingEntry: EntryData | null = null;
 
-  protected isTypeSelectorVisible = true;
+  protected isTypeReadOnly = false;
 
   protected modalTitle = 'Nueva transacción';
 
@@ -122,7 +130,7 @@ export class NewEntryModalComponent implements AfterViewInit {
    */
   ngAfterViewInit(): void {
     const routerOutlet = this.elementRef.nativeElement.closest(
-      'ion-router-outlet',
+      'ion-router-outlet'
     ) as HTMLElement | null;
     this.presentingElement = routerOutlet ?? this.elementRef.nativeElement;
   }
@@ -133,11 +141,30 @@ export class NewEntryModalComponent implements AfterViewInit {
   open(): void {
     const inputPreset = this.presetType();
     const presetType = inputPreset ?? this.manualPresetType;
+    this.isEditMode = false;
+    this.editingEntry = null;
+    this.isTypeReadOnly = false;
     this.manualPresetType = null;
     this.currentPresetType = presetType ?? null;
-    this.isTypeSelectorVisible = this.currentPresetType === null;
     this.modalTitle = this.buildModalTitle(this.currentPresetType);
     this.resetForm();
+    this.hasSavedCurrentForm = false;
+    this.isOpen = true;
+  }
+
+  /**
+   * Opens the modal in edit mode using the provided entry data.
+   *
+   * @param entry Entry to edit.
+   */
+  openForEdit(entry: EntryData): void {
+    this.isEditMode = true;
+    this.editingEntry = entry;
+    this.currentPresetType = entry.type;
+    this.isTypeReadOnly = true;
+    this.modalTitle = this.buildEditModalTitle(entry.type);
+    this.resetForm();
+    this.populateFormForEdit(entry);
     this.hasSavedCurrentForm = false;
     this.isOpen = true;
   }
@@ -156,6 +183,22 @@ export class NewEntryModalComponent implements AfterViewInit {
       return 'Nuevo ingreso';
     }
     return 'Nueva transacción';
+  }
+
+  /**
+   * Resolves the modal title for edit mode.
+   *
+   * @param entryType Entry type being edited.
+   * @returns The localized title for the modal header while editing.
+   */
+  private buildEditModalTitle(entryType: EntryType): string {
+    if (entryType === EntryType.EXPENSE) {
+      return 'Editar gasto';
+    }
+    if (entryType === EntryType.INCOME) {
+      return 'Editar ingreso';
+    }
+    return 'Editar transacción';
   }
 
   /**
@@ -183,14 +226,31 @@ export class NewEntryModalComponent implements AfterViewInit {
     const { amount, description, date, type } = this.form.getRawValue();
     const parsedAmount = this.parseAmount(amount);
     const normalizedType = this.normalizeFormType(type);
+    const normalizedDescription = this.normalizeDescription(description);
+    const normalizedDate = this.normalizeDateToUtcIso(date);
+
+    if (this.isEditMode && this.editingEntry) {
+      this.hasSavedCurrentForm = true;
+      this.prepareToBypassDismissGuard();
+      this.isOpen = false;
+
+      this.entryUpdated.emit({
+        id: this.editingEntry.id,
+        amount: parsedAmount,
+        date: normalizedDate,
+        description: normalizedDescription,
+      });
+      return;
+    }
+
     this.hasSavedCurrentForm = true;
     this.prepareToBypassDismissGuard();
     this.isOpen = false;
 
     this.entrySaved.emit({
       amount: parsedAmount,
-      date: this.normalizeDateToUtcIso(date),
-      description: this.normalizeDescription(description),
+      date: normalizedDate,
+      description: normalizedDescription,
       type: normalizedType,
     });
   }
@@ -203,6 +263,11 @@ export class NewEntryModalComponent implements AfterViewInit {
     this.resetForm();
     this.hasSavedCurrentForm = false;
     this.skipNextDismissGuard = false;
+    this.isEditMode = false;
+    this.editingEntry = null;
+    this.currentPresetType = null;
+    this.modalTitle = this.buildModalTitle(null);
+    this.isTypeReadOnly = false;
   }
 
   /**
@@ -307,9 +372,8 @@ export class NewEntryModalComponent implements AfterViewInit {
     });
 
     const timeZoneName =
-      formatter
-        .formatToParts(date)
-        .find((part) => part.type === 'timeZoneName')?.value ?? 'GMT+0';
+      formatter.formatToParts(date).find((part) => part.type === 'timeZoneName')
+        ?.value ?? 'GMT+0';
     const match = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(timeZoneName);
 
     if (!match) {
@@ -327,6 +391,7 @@ export class NewEntryModalComponent implements AfterViewInit {
    * Restores the form controls to their default state.
    */
   private resetForm(): void {
+    this.form.controls.type.enable({ emitEvent: false });
     this.form.setValue(
       {
         amount: '',
@@ -334,8 +399,29 @@ export class NewEntryModalComponent implements AfterViewInit {
         date: this.createCurrentChileIsoDate(),
         type: this.determineInitialType(),
       },
-      { emitEvent: false },
+      { emitEvent: false }
     );
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+  }
+
+  /**
+   * Populates the form using the data from the entry being edited.
+   *
+   * @param entry Entry data used to populate the form.
+   */
+  private populateFormForEdit(entry: EntryData): void {
+    const chileDate = this.convertDateToChileIso(new Date(entry.date));
+    this.form.setValue(
+      {
+        amount: this.formatAmount(String(entry.amount)),
+        description: entry.description ?? '',
+        date: chileDate,
+        type: entry.type,
+      },
+      { emitEvent: false }
+    );
+    this.form.controls.type.disable({ emitEvent: false });
     this.form.markAsPristine();
     this.form.markAsUntouched();
   }
@@ -369,14 +455,15 @@ export class NewEntryModalComponent implements AfterViewInit {
    * @returns A promise resolving to true when the modal can be dismissed.
    */
   private async ensureCanDismiss(): Promise<boolean> {
-    if (!this.hasUnsavedAmount() || this.hasSavedCurrentForm) {
+    if (!this.hasUnsavedChanges() || this.hasSavedCurrentForm) {
       return true;
     }
 
     const alert = await this.alertController.create({
       header: 'Cambios sin guardar',
-      message:
-        'Has ingresado un monto sin guardar. Si continúas se perderán los cambios.',
+      message: this.isEditMode
+        ? 'Tienes cambios sin guardar. Si continúas se perderán las modificaciones.'
+        : 'Has ingresado un monto sin guardar. Si continúas se perderán los cambios.',
       buttons: [
         {
           text: 'Seguir aquí',
@@ -406,7 +493,11 @@ export class NewEntryModalComponent implements AfterViewInit {
    *
    * @returns True when an amount has been entered without saving.
    */
-  private hasUnsavedAmount(): boolean {
+  private hasUnsavedChanges(): boolean {
+    if (this.isEditMode) {
+      return this.form.dirty;
+    }
+
     const digits = this.sanitizeAmount(this.amountControl.value);
     return digits.length > 0;
   }
@@ -429,7 +520,7 @@ export class NewEntryModalComponent implements AfterViewInit {
    * @returns A normalized entry type.
    */
   private normalizeFormType(
-    value: string | EntryType | null | undefined,
+    value: string | EntryType | null | undefined
   ): EntryType {
     if (value === EntryType.EXPENSE || value === EntryType.INCOME) {
       return value;
