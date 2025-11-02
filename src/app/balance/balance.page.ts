@@ -1,11 +1,11 @@
 import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, DestroyRef, inject, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar, NavController } from '@ionic/angular/standalone';
+import { ActionSheetController, AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar, NavController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addOutline, chevronBackOutline, informationCircleOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
-import { EntryCreation, EntryData, EntryType } from '../shared/models/entry-data.model';
+import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import {
   BalanceItemComponent,
@@ -84,6 +84,7 @@ export class BalancePage {
   private readonly entryService = inject(EntryService);
 
   private readonly alertController = inject(AlertController);
+  private readonly actionSheetController = inject(ActionSheetController);
 
   private readonly navController = inject(NavController);
 
@@ -171,39 +172,101 @@ export class BalancePage {
    * @param entryId Identifier of the entry to remove.
    */
   protected async handleDeleteEntry(entryId: string, requireConfirmation: boolean = true): Promise<void> {
-    if (!requireConfirmation) {
-      this.entryService.removeEntry(entryId);
+    const entry = this.entryService
+      .entriesSignal()
+      .find((item) => item.id === entryId);
+
+    if (!entry) {
       return;
     }
 
-    const alert = await this.alertController.create({
-      header: '¿Eliminar transacción?',
-      message: 'Esta acción eliminará la transacción de tu registro.',
+    const isRecurring = entry.recurrence?.frequency === 'monthly';
+
+    if (!isRecurring) {
+      if (!requireConfirmation) {
+        this.entryService.removeEntry(entryId);
+        return;
+      }
+
+      const alert = await this.alertController.create({
+        header: '¿Eliminar transacción?',
+        message: 'Esta acción eliminará la transacción de tu registro.',
+        buttons: [
+          {
+            text: 'Cancelar',
+            role: 'cancel',
+          },
+          {
+            text: 'Eliminar',
+            role: 'destructive',
+            handler: () => {
+              this.entryService.removeEntry(entryId);
+            },
+          },
+        ],
+      });
+
+      await alert.present();
+      return;
+    }
+
+    if (!requireConfirmation) {
+      this.entryService.removeEntry(entryId, 'single');
+      return;
+    }
+
+    const actionSheet = await this.actionSheetController.create({
+      header: '¿Eliminar gasto recurrente?',
+      subHeader: 'Selecciona el alcance de la eliminación.',
       buttons: [
+        {
+          text: 'Solo esta transacción',
+          handler: () => {
+            this.entryService.removeEntry(entryId, 'single');
+          },
+        },
+        {
+          text: 'Esta y las futuras transacciones',
+          handler: () => {
+            this.entryService.removeEntry(entryId, 'future');
+          },
+        },
+        {
+          text: 'Eliminar serie completa',
+          role: 'destructive',
+          handler: () => {
+            this.entryService.removeEntry(entryId, 'series');
+          },
+        },
         {
           text: 'Cancelar',
           role: 'cancel',
         },
-        {
-          text: 'Eliminar',
-          role: 'destructive',
-          handler: () => {
-            this.entryService.removeEntry(entryId);
-          },
-        },
       ],
     });
 
-    await alert.present();
+    await actionSheet.present();
   }
 
   /**
-   * Placeholder for the upcoming edit functionality.
+   * Opens the entry modal in edit mode for the specified entry.
    *
    * @param entryId Identifier of the entry to edit.
    */
   protected handleEditEntry(entryId: string): void {
-    void entryId;
+    const modal = this.modal;
+    if (!modal) {
+      return;
+    }
+
+    const entry = this.entryService
+      .entriesSignal()
+      .find((item) => item.id === entryId);
+    if (!entry) {
+      return;
+    }
+
+    modal.openForEdit(entry);
   }
 
   /**
@@ -213,6 +276,19 @@ export class BalancePage {
    */
   protected handleEntrySaved(entry: EntryCreation): void {
     this.entryService.addEntry(entry);
+  }
+
+  /**
+   * Receives the data emitted when an entry has been edited.
+   *
+   * @param payload Entry data modifications captured through the modal.
+   */
+  protected handleEntryUpdated(payload: EntryUpdatePayload): void {
+    this.entryService.updateEntry(payload.id, {
+      amount: payload.amount,
+      date: payload.date,
+      description: payload.description,
+    });
   }
 
   /**

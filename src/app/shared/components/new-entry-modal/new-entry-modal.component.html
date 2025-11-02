@@ -21,21 +21,67 @@
       <div class="modal-content">
         <form [formGroup]="form" (ngSubmit)="handleSave()">
           <ion-list lines="full">
-            @if (isTypeSelectorVisible) {
+            <ion-item>
+              <ion-label position="stacked">Tipo de transacción</ion-label>
+              <ion-segment formControlName="type" [disabled]="isTypeReadOnly">
+                <ion-segment-button [value]="entryType.EXPENSE">
+                  <ion-label>Gasto</ion-label>
+                </ion-segment-button>
+                <ion-segment-button [value]="entryType.INCOME">
+                  <ion-label>Ingreso</ion-label>
+                </ion-segment-button>
+              </ion-segment>
+            </ion-item>
+            <ion-item>
+              <ion-label position="stacked">Recurrencia</ion-label>
+              <ion-select
+                interface="action-sheet"
+                formControlName="recurrenceMode"
+                [disabled]="isRecurrenceReadOnly"
+                placeholder="Selecciona una opción"
+              >
+                <ion-select-option value="none">
+                  No se repite
+                </ion-select-option>
+                <ion-select-option value="indefinite">
+                  Mensualmente de forma indefinida
+                </ion-select-option>
+                <ion-select-option value="occurrences">
+                  Mensualmente un número específico de veces
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+            @if (form.controls.recurrenceMode.value === 'occurrences') {
               <ion-item>
-                <ion-label position="stacked">Tipo de transacción</ion-label>
-                <ion-segment formControlName="type">
-                  <ion-segment-button [value]="entryType.EXPENSE">
-                    <ion-label>Gasto</ion-label>
-                  </ion-segment-button>
-                  <ion-segment-button [value]="entryType.INCOME">
-                    <ion-label>Ingreso</ion-label>
-                  </ion-segment-button>
-                </ion-segment>
+                <ion-label position="stacked">Número de repeticiones</ion-label>
+                <ion-input
+                  formControlName="recurrenceCount"
+                  placeholder="Ingresa la cantidad de meses"
+                  inputmode="numeric"
+                  type="number"
+                  min="1"
+                ></ion-input>
               </ion-item>
+              @if (recurrenceEndHint) {
+                <ion-text color="medium" class="recurrence-hint">
+                  <ion-icon
+                    aria-hidden="true"
+                    class="recurrence-hint__icon"
+                    name="information-circle-outline"
+                  ></ion-icon>
+                  <p>
+                    Se repetirá por última vez en
+                    <span class="spinner-text">{{ recurrenceEndHint }}</span>
+                  </p>
+                </ion-text>
+              }
             }
             <ion-item>
-              <ion-label position="stacked">Monto</ion-label>
+              @if (form.controls.recurrenceMode.value === 'occurrences') {
+                <ion-label position="stacked">Monto mensual</ion-label>
+              } @else {
+                <ion-label position="stacked">Monto</ion-label>
+              }
               <ion-input
                 placeholder="Ingresa el monto"
                 formControlName="amount"
