@@ -1,0 +1,16 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ionic serve",
+            "type": "chrome",
+            "request": "launch",
+            "preLaunchTask": "npm: start:debug",
+            "url": "https://localhost:8107/",
+            "webRoot": "${workspaceFolder}/src"
+        }
+    ]
+}

@@ -71,7 +71,122 @@
             <ion-text color="medium" class="settings-auth-debug">
               <pre>{{ authUser | json }}</pre>
             </ion-text>
+
+            <ion-item
+              button
+              detail="false"
+              class="settings-item settings-item--auth"
+              (click)="handleShowUploadedFiles()"
+            >
+              <ion-icon
+                aria-hidden="true"
+                class="settings-item__icon"
+                name="bug-outline"
+                slot="start"
+              ></ion-icon>
+              <ion-label>
+                <h2>Mostrar archivos subidos</h2>
+                <p>
+                  Muestra en consola los archivos que se han subido durante la sincronización.
+                </p>
+              </ion-label>
+              @if (isSyncing) {
+                <ion-spinner slot="end"></ion-spinner>
+              }
+            </ion-item>
+
+            <ion-item
+              button
+              detail="false"
+              class="settings-item settings-item--auth"
+              (click)="handleShowLastUploadedFileContent()"
+            >
+              <ion-icon
+                aria-hidden="true"
+                class="settings-item__icon"
+                name="bug-outline"
+                slot="start"
+              ></ion-icon>
+              <ion-label>
+                <h2>Mostrar contenido del archivo</h2>
+                <p>
+                  Muestra en consola el contenido del último archivo subido.
+                </p>
+              </ion-label>
+              @if (isSyncing) {
+                <ion-spinner slot="end"></ion-spinner>
+              }
+            </ion-item>
+
+            <ion-item
+              button
+              detail="false"
+              class="settings-item settings-item--auth"
+              (click)="handleClearRemoteData()"
+            >
+              <ion-icon
+                aria-hidden="true"
+                class="settings-item__icon"
+                name="bug-outline"
+                slot="start"
+              ></ion-icon>
+              <ion-label>
+                <h2>Eliminar archivos subidos</h2>
+                <p>
+                  Elimina los archivos que se han subido durante la sincronización.
+                </p>
+              </ion-label>
+              @if (isSyncing) {
+                <ion-spinner slot="end"></ion-spinner>
+              }
+            </ion-item>
+
+            <ion-item
+              button
+              detail="false"
+              class="settings-item settings-item--auth"
+              (click)="handleUploadFile()"
+            >
+              <ion-icon
+                aria-hidden="true"
+                class="settings-item__icon"
+                name="sync-outline"
+                slot="start"
+              ></ion-icon>
+              <ion-label>
+                <h2>Subir datos</h2>
+                <p>
+                  Sube tus transacciones en la nube.
+                </p>
+              </ion-label>
+              @if (isSyncing) {
+                <ion-spinner slot="end"></ion-spinner>
+              }
+            </ion-item>
           }
+
+          <ion-item
+            button
+            detail="false"
+            class="settings-item settings-item--auth"
+            (click)="handleSync()"
+          >
+            <ion-icon
+              aria-hidden="true"
+              class="settings-item__icon"
+              name="sync-outline"
+              slot="start"
+            ></ion-icon>
+            <ion-label>
+              <h2>Sincronizar datos</h2>
+              <p>
+                Guarda y actualiza tus transacciones en la nube.
+              </p>
+            </ion-label>
+            @if (isSyncing) {
+              <ion-spinner slot="end"></ion-spinner>
+            }
+          </ion-item>
         }
       </ion-list>
 
@@ -115,6 +230,28 @@
             </p>
           </ion-label>
         </ion-item>
+        @if (shouldShowAuthDebugInfo) {
+          <ion-item
+            button
+            detail="false"
+            class="settings-item"
+            (click)="handleDeleteAllData()"
+          >
+            <ion-icon
+              aria-hidden="true"
+              class="settings-item__icon"
+              name="close-circle-outline"
+              slot="start"
+              style="color: red"
+            ></ion-icon>
+            <ion-label>
+              <h2>Eliminar transacciones</h2>
+              <p>
+                Elimina todas las transacciones almacenadas actualmente.
+              </p>
+            </ion-label>
+          </ion-item>
+        }
       </ion-list>
 
       <ion-text color="medium" class="settings-hint">

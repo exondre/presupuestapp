@@ -16,7 +16,7 @@ export const environment: Environment = {
     measurementId: 'OPTIONAL:REPLACE_WITH_DEV_FIREBASE_MEASUREMENT_ID',
   },
   features: {
-    authDebugInfo: true,
+    authDebugInfo: false,
   },
 };
 
