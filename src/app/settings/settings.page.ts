@@ -410,7 +410,7 @@ export class SettingsPage {
       await this.expensesSyncService.doSync();
     } catch (error) {
       console.error('Error during sync:', error);
-      if (typeof (error as any)?.status === 'number' && (error as any).status === 401) {
+      if (typeof (error as any)?.status === 'number' && ((error as any).status === 401) || (error as any).status === 403) {
         await this.presentError('No autorizado. Por favor, inicia sesión nuevamente.');
       }
     } finally {
@@ -424,7 +424,7 @@ export class SettingsPage {
       await this.expensesSyncService.uploadFile();
     } catch (error) {
       console.error('Error during file upload:', error);
-      if (typeof (error as any)?.status === 'number' && (error as any).status === 401) {
+      if (typeof (error as any)?.status === 'number' && ((error as any).status === 401) || (error as any).status === 403) {
         await this.presentError('No autorizado. Por favor, inicia sesión nuevamente.');
       }
     } finally {
