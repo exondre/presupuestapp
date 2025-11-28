@@ -731,16 +731,7 @@ export class EntryService {
    * @param rawData Data obtained from an import file.
    */
   importEntries(rawData: unknown): void {
-    const importedEntries = this.extractImportedEntries(rawData);
-
-    const normalizedEntries: EntryData[] = importedEntries.map((entry) => {
-      const normalized = this.normalizeStoredEntry(entry);
-      if (!normalized) {
-        throw new Error('Invalid entry detected during import.');
-      }
-
-      return normalized.entry;
-    });
+    const normalizedEntries: EntryData[] = this.extractAndNormalizeImportedEntries(rawData);
 
     this.persistEntries(normalizedEntries);
     this.ensureRecurringEntriesUpTo(new Date());
@@ -1228,4 +1219,93 @@ export class EntryService {
 
     return monthsSummary;
   });
+
+  extractAndNormalizeImportedEntries(importedData: any): EntryData[] {
+      console.debug('Extracting and normalizing imported entries.', importedData);
+      const importedEntries = this.extractImportedEntries(importedData);
+
+      const normalizedImported: EntryData[] = [];
+      importedEntries.forEach((entry) => {
+        const normalized = this.normalizeStoredEntry(entry);
+        if (!normalized) {
+          throw new Error('Invalid entry detected during import.');
+        }
+        normalizedImported.push(normalized.entry);
+      });
+      return normalizedImported;
+  }
+
+  async compareAndMergeEntries(importedData: unknown): Promise<{
+    added: number;
+    updated: number;
+    skipped: number;
+  }> {
+    let parsedData: any;
+    try {
+      parsedData = JSON.parse(importedData as string);
+    } catch (error) {
+      throw new Error('Failed to parse import data as JSON.');
+    }
+
+    const normalizedImported = this.extractAndNormalizeImportedEntries(parsedData);
+
+    const currentEntries = this.entriesSubject.value;
+    const currentEntriesMap = new Map<string, EntryData>();
+    currentEntries.forEach((entry) => {
+      currentEntriesMap.set(entry.id, entry);
+    });
+
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    normalizedImported.forEach((importedEntry) => {
+      const existingEntry = currentEntriesMap.get(importedEntry.id);
+      if (!existingEntry) {
+        currentEntriesMap.set(importedEntry.id, importedEntry);
+        added += 1;
+        return;
+      }
+
+      const isUnchanged =
+        importedEntry.amount === existingEntry.amount &&
+        importedEntry.date === existingEntry.date &&
+        importedEntry.description === existingEntry.description &&
+        importedEntry.type === existingEntry.type &&
+        this.areRecurrencesEqual(
+          importedEntry.recurrence,
+          existingEntry.recurrence
+        );
+
+      if (isUnchanged) {
+        skipped += 1;
+        return;
+      }
+
+      // check which entry is more recent
+      const importedUpdatedAt = importedEntry.updatedAt
+        ? new Date(importedEntry.updatedAt)
+        : null;
+      const existingUpdatedAt = existingEntry.updatedAt
+        ? new Date(existingEntry.updatedAt)
+        : null;
+
+      const importedIsMoreRecent =
+        importedUpdatedAt &&
+        (!existingUpdatedAt || importedUpdatedAt > existingUpdatedAt);
+
+      currentEntriesMap.set(importedEntry.id, importedIsMoreRecent ? importedEntry : existingEntry);
+      updated += 1;
+    });
+
+    const mergedEntries = Array.from(currentEntriesMap.values());
+    this.persistEntries(mergedEntries);
+    this.ensureRecurringEntriesUpTo(new Date());
+
+    return { added, updated, skipped };
+  }
+
+  async deleteAllData(): Promise<void> {
+    this.persistEntries([]);
+  }
 }

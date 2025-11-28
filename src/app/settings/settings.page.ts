@@ -28,15 +28,19 @@ import { AsyncPipe, JsonPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { addIcons } from 'ionicons';
 import {
+  bugOutline,
+  closeCircleOutline,
   cloudDownloadOutline,
   cloudUploadOutline,
   logoGoogle,
+  syncOutline,
   warningOutline,
 } from 'ionicons/icons';
 import packageInfo from '../../../package.json';
 import { EntryService } from '../shared/services/entry.service';
 import { FirebaseAuthService, AuthStatus } from '../auth/firebase-auth.service';
 import { environment } from '../../environments/environment';
+import { EntrySyncService } from '../shared/services/entry-sync.service';
 
 /**
  * Provides application settings such as data import and export utilities.
@@ -81,6 +85,8 @@ export class SettingsPage {
 
   private readonly firebaseAuthService = inject(FirebaseAuthService);
 
+  private readonly expensesSyncService = inject(EntrySyncService);
+
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly shouldShowAuthDebugInfo = environment.features.authDebugInfo;
@@ -90,8 +96,8 @@ export class SettingsPage {
   protected readonly authStatus = signal<AuthStatus>('idle');
 
   protected readonly isSigningIn = computed(() => this.authStatus() === 'signing-in');
-
   protected readonly isSigningOut = computed(() => this.authStatus() === 'signing-out');
+  protected isSyncing = false;
 
   constructor() {
     addIcons({
@@ -99,6 +105,9 @@ export class SettingsPage {
       'cloud-download-outline': cloudDownloadOutline,
       'logo-google': logoGoogle,
       'warning-outline': warningOutline,
+      'sync-outline': syncOutline,
+      'bug-outline': bugOutline,
+      'close-circle-outline': closeCircleOutline,
     });
 
     this.firebaseAuthService.status$
@@ -393,5 +402,101 @@ export class SettingsPage {
     });
 
     await alert.present();
+  }
+
+  protected async handleSync() {
+    this.isSyncing = true;
+    try {
+      await this.expensesSyncService.doSync();
+    } catch (error) {
+      console.error('Error during sync:', error);
+      if (typeof (error as any)?.status === 'number' && (error as any).status === 401) {
+        await this.presentError('No autorizado. Por favor, inicia sesión nuevamente.');
+      }
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  protected async handleUploadFile() {
+    this.isSyncing = true;
+    try {
+      await this.expensesSyncService.uploadFile();
+    } catch (error) {
+      console.error('Error during file upload:', error);
+      if (typeof (error as any)?.status === 'number' && (error as any).status === 401) {
+        await this.presentError('No autorizado. Por favor, inicia sesión nuevamente.');
+      }
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  protected async handleShowUploadedFiles() {
+    try {
+      await this.expensesSyncService.printListOfUploadedFiles();
+    } catch (error) {
+      console.error('Error fetching uploaded file IDs:', error);
+    }
+  }
+
+  protected async handleShowLastUploadedFileContent() {
+    this.isSyncing = true;
+    try {
+      await this.expensesSyncService.printLastUploadedFileContent();
+    } catch (error) {
+      console.error('Error fetching last uploaded file content:', error);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  protected async handleClearRemoteData() {
+    this.isSyncing = true;
+    try {
+      await this.expensesSyncService.clearRemoteData();
+    } catch (error) {
+      console.error('Error clearing remote data:', error);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  protected async handleDeleteAllData() {
+    const alert = await this.alertController.create({
+        header: '¡CUIDADO! - Eliminar datos',
+        message:
+          'Esta acción eliminará todas las transacciones almacenadas y es irreversible. ¿Estás seguro de que deseas continuar?',
+        buttons: [
+          {
+            text: 'Cancelar',
+            role: 'cancel',
+          },
+          {
+            text: '¡ELIMINAR TODO!',
+            role: 'confirm',
+            handler: () => {
+              this.doDeleteAllData();
+            }
+          },
+        ],
+      });
+
+      await alert.present();
+      return;
+  }
+
+  private async doDeleteAllData() {
+    try {
+      await this.withLoader('Eliminando transacciones…', async () => {
+        await this.entryService.deleteAllData();
+      });
+      await this.presentToast('Todas las transacciones han sido eliminadas.');
+    } catch (error) {
+      await this.presentError(
+        'No se pudieron eliminar las transacciones. Intenta nuevamente.',
+        error,
+      );
+    }
   }
 }

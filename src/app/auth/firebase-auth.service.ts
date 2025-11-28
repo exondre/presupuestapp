@@ -5,6 +5,7 @@ import {
   Auth,
   GoogleAuthProvider,
   User,
+  UserCredential,
   browserLocalPersistence,
   getAuth,
   getRedirectResult,
@@ -15,10 +16,18 @@ import {
   signInWithRedirect,
   signOut,
 } from 'firebase/auth';
-import { BehaviorSubject, Observable, Subject, distinctUntilChanged, filter, firstValueFrom } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  Subject,
+  distinctUntilChanged,
+  filter,
+  firstValueFrom,
+} from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { AuthUser } from './auth-user.model';
+import { LocalStorageService } from '../shared/services/local-storage.service';
 
 export type AuthStatus = 'idle' | 'signing-in' | 'signing-out';
 
@@ -33,8 +42,10 @@ export class FirebaseAuthService {
   private readonly auth: Auth;
 
   private readonly zone = inject(NgZone);
+  private readonly localStorageService = inject(LocalStorageService);
 
   private readonly userSubject = new BehaviorSubject<AuthUser | null>(null);
+  private readonly rawUserSubject = new BehaviorSubject<any | null>(null);
 
   private readonly statusSubject = new BehaviorSubject<AuthStatus>('idle');
 
@@ -46,6 +57,8 @@ export class FirebaseAuthService {
 
   private signOutRequested = false;
 
+  private gAccessToken: string | null = null;
+
   constructor() {
     if (!getApps().length) {
       initializeApp(environment.firebase);
@@ -55,12 +68,14 @@ export class FirebaseAuthService {
       // Persistence will fallback to the default session strategy if configuration fails.
     });
     this.observeAuthState();
-    void getRedirectResult(this.auth).catch((error) => {
-      this.zone.run(() => {
-        const message = this.mapErrorToMessage(error);
-        this.errorsSubject.next(message);
+    void getRedirectResult(this.auth)
+      .then((result) => this.handleRedirectResult(result))
+      .catch((error) => {
+        this.zone.run(() => {
+          const message = this.mapErrorToMessage(error);
+          this.errorsSubject.next(message);
+        });
       });
-    });
   }
 
   /**
@@ -113,7 +128,10 @@ export class FirebaseAuthService {
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
     provider.addScope('https://www.googleapis.com/auth/drive.appdata');
-    provider.setCustomParameters({ prompt: 'select_account' });
+    provider.setCustomParameters({
+      prompt: 'consent',
+      access_type: 'offline',
+    });
 
     try {
       if (this.shouldUseRedirectFlow()) {
@@ -124,6 +142,7 @@ export class FirebaseAuthService {
       const credential = await signInWithPopup(this.auth, provider);
       const user = this.mapUser(credential.user);
       this.userSubject.next(user);
+      this.rawUserSubject.next(credential.user);
       return user;
     } catch (error) {
       console.error('Error during sign-in:', error);
@@ -151,6 +170,7 @@ export class FirebaseAuthService {
     try {
       await signOut(this.auth);
       this.userSubject.next(null);
+      this.rawUserSubject.next(null);
     } catch (error) {
       this.signOutRequested = false;
       const message = this.mapErrorToMessage(error);
@@ -171,8 +191,14 @@ export class FirebaseAuthService {
         const mappedUser = user ? this.mapUser(user) : null;
         const previousUser = this.userSubject.value;
         this.userSubject.next(mappedUser);
+        this.rawUserSubject.next(this.auth.currentUser);
 
-        if (this.hasReceivedInitialSnapshot && previousUser && !mappedUser && !this.signOutRequested) {
+        if (
+          this.hasReceivedInitialSnapshot &&
+          previousUser &&
+          !mappedUser &&
+          !this.signOutRequested
+        ) {
           this.unexpectedSessionSubject.next();
         }
 
@@ -215,7 +241,10 @@ export class FirebaseAuthService {
    * @returns True if the display mode corresponds to standalone.
    */
   private isStandalone(): boolean {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
       return false;
     }
     return window.matchMedia('(display-mode: standalone)').matches;
@@ -228,10 +257,34 @@ export class FirebaseAuthService {
    */
   private async waitForUser(): Promise<AuthUser> {
     return firstValueFrom(
-      this.user$.pipe(
-        filter((user): user is AuthUser => Boolean(user)),
-      ),
+      this.user$.pipe(filter((user): user is AuthUser => Boolean(user)))
     );
+  }
+
+  private handleRedirectResult(result: UserCredential | null): void {
+    if (!result) return;
+
+    console.debug('🔄 Redirect result:', result);
+
+    const googleCred = GoogleAuthProvider.credentialFromResult(result);
+    if (googleCred?.accessToken) {
+      console.debug("✅ Google OAuth Access Token restaurado vía redirect");
+      this.gAccessToken = googleCred.accessToken;
+      if (this.gAccessToken) {
+        this.localStorageService.gAccessToken = this.gAccessToken;
+      }
+    }
+
+    const user = this.mapUser(result.user);
+    this.userSubject.next(user);
+    this.rawUserSubject.next(result.user);
+  }
+
+  getGAccessToken(): string | null {
+    if (!this.gAccessToken) {
+      this.gAccessToken = this.localStorageService.gAccessToken;
+    }
+    return this.gAccessToken;
   }
 
   /**
@@ -260,7 +313,10 @@ export class FirebaseAuthService {
    * @returns Localized message ready to be displayed to the user.
    */
   private mapErrorToMessage(error: unknown): string {
-    if (error instanceof Error && error.message === 'LOGIN_ALREADY_IN_PROGRESS') {
+    if (
+      error instanceof Error &&
+      error.message === 'LOGIN_ALREADY_IN_PROGRESS'
+    ) {
       return 'Ya hay una autenticación en curso. Espera un momento e inténtalo nuevamente.';
     }
 

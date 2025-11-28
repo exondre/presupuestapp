@@ -1,11 +1,12 @@
 {
   "name": "PresupuestApp",
   "description": "An application for managing budgets.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "author": "Edixon Gutiérrez Mármol",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:debug": "ionic serve --external --no-open --port=8107 --host 0.0.0.0 --disable-host-check --ssl true --ssl-cert=cert.pem --ssl-key=key.pem",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",

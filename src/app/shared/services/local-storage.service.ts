@@ -12,6 +12,8 @@ export class LocalStorageService {
 
   private readonly memoryStorage = new Map<string, string>();
 
+  private static readonly GACCESS_TOKEN_KEY = 'presupuestapp:gaccess_token';
+
   /**
    * Stores the provided value under the specified key.
    *
@@ -63,6 +65,18 @@ export class LocalStorageService {
     }
 
     window.localStorage.removeItem(key);
+  }
+
+  set gAccessToken(value: string | null) {
+    if (value === null) {
+      this.removeItem(LocalStorageService.GACCESS_TOKEN_KEY);
+    } else {
+      this.setItem<string>(LocalStorageService.GACCESS_TOKEN_KEY, value);
+    }
+  }
+
+  get gAccessToken(): string | null {
+    return this.getItem<string>(LocalStorageService.GACCESS_TOKEN_KEY);
   }
 
   /**
