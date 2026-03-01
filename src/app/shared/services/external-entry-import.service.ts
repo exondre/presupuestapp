@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import readXlsxFile, { Row } from 'read-excel-file';
-import { EntryCreation, EntryData, EntryType, IdempotencyInfo } from '../models/entry-data.model';
+import { EntryCreation, EntryData, EntryRecurrenceCreation, EntryType, IdempotencyInfo } from '../models/entry-data.model';
 
 /**
  * Represents a parsed entry from an external file import.
@@ -11,6 +11,16 @@ export interface ParsedEntry {
   amount: number;
   type: EntryType;
   idempotencyInfo: IdempotencyInfo[];
+  recurrence?: EntryRecurrenceCreation;
+  installmentInfo?: InstallmentInfo;
+}
+
+/**
+ * Display-only metadata describing the installment position of a parsed entry.
+ */
+export interface InstallmentInfo {
+  current: number;
+  total: number;
 }
 
 /**
@@ -108,14 +118,16 @@ export class ExternalEntryImportService {
       // Columns: 0=Fecha, 1=Descripcion, 2=Titular/Adicional, 3=Monto, 4=Cuotas Pendientes, 5=Valor Cuota
       const rawDate = row[0];
       const rawDescription = row[1];
+      const rawMonto = row[3];
+      const rawCuotasPendientes = row[4];
       const rawValorCuota = row[5];
 
       try {
-        const date = this.parseDate(rawDate);
+        const transactionDate = this.parseDate(rawDate);
         const description = this.removeTrailingAsterisk(String(rawDescription ?? '').trim());
         const signedAmount = this.parseAmount(rawValorCuota);
 
-        if (!date || signedAmount === 0) {
+        if (!transactionDate || signedAmount === 0) {
           skippedRows++;
           continue;
         }
@@ -128,13 +140,25 @@ export class ExternalEntryImportService {
 
         const type = signedAmount < 0 ? EntryType.INCOME : EntryType.EXPENSE;
         const amount = Math.abs(signedAmount);
+
+        const installment = this.parseInstallmentInfo(rawMonto, rawCuotasPendientes, signedAmount);
+
         const entry: ParsedEntry = {
-          date,
+          date: transactionDate,
           description,
           amount,
           type,
-          idempotencyInfo: [this.generateIdempotencyInfo(date, description, amount, type)],
+          idempotencyInfo: [this.generateIdempotencyInfo(transactionDate, description, amount, type)],
         };
+
+        if (installment) {
+          entry.recurrence = {
+            frequency: 'monthly',
+            termination: { mode: 'occurrences', total: installment.total },
+          };
+          entry.installmentInfo = installment;
+        }
+
         entries.push(entry);
       } catch (parseError) {
         console.error(`Error al parsear fila ${i + 1}:`, parseError);
@@ -378,6 +402,59 @@ export class ExternalEntryImportService {
       description: parsed.description,
       type: parsed.type,
       idempotencyInfo: parsed.idempotencyInfo,
+      recurrence: parsed.recurrence,
     };
+  }
+
+  /**
+   * Parses installment information from the CMR Monto and Cuotas Pendientes columns.
+   * Returns null when the transaction is not an installment purchase.
+   *
+   * @param rawMonto Raw value from the Monto column (total purchase amount).
+   * @param rawCuotasPendientes Raw value from the Cuotas Pendientes column.
+   * @param signedValorCuota Parsed signed installment amount.
+   * @returns Installment info or null.
+   */
+  private parseInstallmentInfo(
+    rawMonto: unknown,
+    rawCuotasPendientes: unknown,
+    signedValorCuota: number,
+  ): InstallmentInfo | null {
+    const cuotasPendientes = this.parsePositiveInt(rawCuotasPendientes);
+    if (cuotasPendientes === null || cuotasPendientes <= 0) {
+      return null;
+    }
+
+    const monto = this.parseAmount(rawMonto);
+    if (monto === 0) {
+      return null;
+    }
+
+    const totalCuotas = Math.round(Math.abs(monto / signedValorCuota));
+    if (totalCuotas < 1 || totalCuotas < cuotasPendientes) {
+      return null;
+    }
+
+    const cuotasPagadas = totalCuotas - cuotasPendientes;
+    return { current: cuotasPagadas + 1, total: totalCuotas };
+  }
+
+  /**
+   * Parses a value as a positive integer. Returns null on failure or non-positive values.
+   *
+   * @param value Raw value to parse.
+   * @returns Positive integer or null.
+   */
+  private parsePositiveInt(value: unknown): number | null {
+    if (value == null) {
+      return null;
+    }
+
+    const num = typeof value === 'number' ? value : parseInt(String(value), 10);
+    if (isNaN(num) || num <= 0) {
+      return null;
+    }
+
+    return Math.trunc(num);
   }
 }

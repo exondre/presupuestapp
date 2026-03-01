@@ -43,6 +43,11 @@
                 <div class="import-review-item__details">
                   <span class="import-review-item__amount">{{ utils.formatAmount(duplicate.importedEntry.amount) }}</span>
                   <span class="import-review-item__date">{{ formatDate(duplicate.importedEntry.date) }}</span>
+                  @if (duplicate.importedEntry.installmentInfo) {
+                    <ion-badge color="tertiary" class="import-review-item__installment">
+                      Cuota {{ duplicate.importedEntry.installmentInfo.current }} de {{ duplicate.importedEntry.installmentInfo.total }}
+                    </ion-badge>
+                  }
                 </div>
 
                 <ion-note class="import-review-item__match">
@@ -100,6 +105,9 @@
                     <h3>{{ entry.description || 'Sin descripción' }}</h3>
                     <p>
                       {{ utils.formatAmount(entry.amount) }} · {{ formatDate(entry.date) }}
+                      @if (entry.installmentInfo) {
+                        · Cuota {{ entry.installmentInfo.current }} de {{ entry.installmentInfo.total }}
+                      }
                     </p>
                   </ion-label>
                   <ion-button
@@ -138,6 +146,9 @@
                     <h3>{{ entry.description || 'Sin descripción' }}</h3>
                     <p>
                       {{ utils.formatAmount(entry.amount) }} · {{ formatDate(entry.date) }}
+                      @if (entry.installmentInfo) {
+                        · Cuota {{ entry.installmentInfo.current }} de {{ entry.installmentInfo.total }}
+                      }
                     </p>
                   </ion-label>
                   <ion-button

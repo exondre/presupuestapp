@@ -153,9 +153,10 @@ export class EntryService {
    * @param entries Array of entry data to store.
    */
   addEntries(entries: EntryCreation[]): void {
+    let hasRecurrence = false;
     const newEntries: EntryData[] = entries.map((entry) => {
       const { type } = this.normalizeType(entry.type);
-      return {
+      const newEntry: EntryData = {
         id: this.generateId(),
         amount: entry.amount,
         date: entry.date,
@@ -164,10 +165,22 @@ export class EntryService {
         updatedAt: new Date().toISOString(),
         idempotencyInfo: entry.idempotencyInfo,
       };
+
+      const recurrence = this.createRecurrenceMetadata(entry.recurrence, newEntry.date);
+      if (recurrence) {
+        newEntry.recurrence = recurrence;
+        hasRecurrence = true;
+      }
+
+      return newEntry;
     });
 
     const updatedEntries = [...this.entriesSubject.value, ...newEntries];
     this.persistEntries(updatedEntries);
+
+    if (hasRecurrence) {
+      this.ensureRecurringEntriesUpTo(new Date());
+    }
   }
 
   /**
@@ -189,6 +202,37 @@ export class EntryService {
     const updatedEntries = [...currentEntries];
     updatedEntries[entryIndex] = { ...entry, idempotencyInfo: merged };
     this.persistEntries(updatedEntries);
+  }
+
+  /**
+   * Converts an existing non-recurring entry into a recurring series.
+   * Does nothing if the entry already has recurrence metadata.
+   *
+   * @param entryId Identifier of the entry to convert.
+   * @param recurrence Recurrence creation payload to apply.
+   */
+  convertToRecurring(entryId: string, recurrence: EntryRecurrenceCreation): void {
+    const currentEntries = this.entriesSubject.value;
+    const entryIndex = currentEntries.findIndex((e) => e.id === entryId);
+
+    if (entryIndex === -1) {
+      return;
+    }
+
+    const entry = currentEntries[entryIndex];
+    if (entry.recurrence) {
+      return;
+    }
+
+    const metadata = this.createRecurrenceMetadata(recurrence, entry.date);
+    if (!metadata) {
+      return;
+    }
+
+    const updatedEntries = [...currentEntries];
+    updatedEntries[entryIndex] = { ...entry, recurrence: metadata };
+    this.persistEntries(updatedEntries);
+    this.ensureRecurringEntriesUpTo(new Date());
   }
 
   /**

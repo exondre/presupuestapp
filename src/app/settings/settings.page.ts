@@ -377,6 +377,13 @@ export class SettingsPage {
             dup.matchedEntry.id,
             dup.importedEntry.idempotencyInfo,
           );
+
+          if (dup.importedEntry.recurrence && !dup.matchedEntry.recurrence) {
+            this.entryService.convertToRecurring(
+              dup.matchedEntry.id,
+              dup.importedEntry.recurrence,
+            );
+          }
         }
       });
       await this.presentToast(`${confirmation.entriesToImport.length} transacciones importadas correctamente.`);
