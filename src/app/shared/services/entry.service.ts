@@ -7,6 +7,7 @@ import {
   EntryRecurrenceCreation,
   EntryRecurrenceTermination,
   EntryType,
+  IdempotencyInfo,
 } from '../models/entry-data.model';
 import { MonthSummaryItem } from '../models/month-summary-item.model';
 import { LocalStorageService } from './local-storage.service';
@@ -144,6 +145,50 @@ export class EntryService {
     if (recurrence) {
       this.ensureRecurringEntriesUpTo(new Date());
     }
+  }
+
+  /**
+   * Adds multiple entries to the in-memory collection in a single persistence operation.
+   *
+   * @param entries Array of entry data to store.
+   */
+  addEntries(entries: EntryCreation[]): void {
+    const newEntries: EntryData[] = entries.map((entry) => {
+      const { type } = this.normalizeType(entry.type);
+      return {
+        id: this.generateId(),
+        amount: entry.amount,
+        date: entry.date,
+        description: entry.description,
+        type,
+        updatedAt: new Date().toISOString(),
+        idempotencyInfo: entry.idempotencyInfo,
+      };
+    });
+
+    const updatedEntries = [...this.entriesSubject.value, ...newEntries];
+    this.persistEntries(updatedEntries);
+  }
+
+  /**
+   * Appends idempotency info to an existing entry without changing its other fields.
+   *
+   * @param entryId Identifier of the entry to update.
+   * @param info Idempotency entries to append.
+   */
+  appendIdempotencyInfo(entryId: string, info: IdempotencyInfo[]): void {
+    const currentEntries = this.entriesSubject.value;
+    const entryIndex = currentEntries.findIndex((e) => e.id === entryId);
+
+    if (entryIndex === -1) {
+      return;
+    }
+
+    const entry = currentEntries[entryIndex];
+    const merged = [...(entry.idempotencyInfo ?? []), ...info];
+    const updatedEntries = [...currentEntries];
+    updatedEntries[entryIndex] = { ...entry, idempotencyInfo: merged };
+    this.persistEntries(updatedEntries);
   }
 
   /**
