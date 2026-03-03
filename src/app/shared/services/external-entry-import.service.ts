@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import readXlsxFile, { Row } from 'read-excel-file';
+import readXlsxFile, { Row } from 'read-excel-file/browser';
 import { EntryCreation, EntryData, EntryRecurrenceCreation, EntryType, IdempotencyInfo } from '../models/entry-data.model';
 
 /**
