@@ -1,22 +1,62 @@
-<ion-content class="home-content" [fullscreen]="true" [scrollY]="false">
-  <div class="home-container">
-    <img
-      alt="Logotipo de PresupuestApp"
-      class="home-logo"
-      src="assets/icons/icon-1024.png"
-    />
-    <p class="app-name">PresupuestApp</p>
+<ion-content [fullscreen]="true" class="home-content">
+  <div class="home-header">
+    <h1 class="home-header__greeting">Hola</h1>
+    <p class="home-header__month">{{ currentMonthLabel() }}</p>
   </div>
-  <div class="home-buttons">
-    <ion-button
-      expand="block"
-      fill="outline"
-      size="large"
-      (click)="openEntryModal(null)"
-    >
+
+  <div class="home-summary">
+    <div class="home-summary-card home-summary-card--income">
+      <span class="home-summary-card__label">Ingresos</span>
+      <span class="home-summary-card__amount">{{ incomeLabel() }}</span>
+    </div>
+    <div class="home-summary-card home-summary-card--expense">
+      <span class="home-summary-card__label">Gastos</span>
+      <span class="home-summary-card__amount">{{ expenseLabel() }}</span>
+    </div>
+    <div class="home-summary-card home-summary-card--balance">
+      <span class="home-summary-card__label">Balance</span>
+      <span class="home-summary-card__amount">{{ balanceLabel() }}</span>
+    </div>
+  </div>
+
+  <div class="home-actions">
+    <ion-button expand="block" size="large" (click)="openEntryModal(null)">
       Nueva transacción
     </ion-button>
   </div>
+
+  @if (recentEntries().length > 0) {
+    <div class="home-recent">
+      <div class="home-recent__header">
+        <h2 class="home-recent__title">Recientes</h2>
+        <ion-button fill="clear" size="small" (click)="navigateToBalance()">
+          Ver todo
+        </ion-button>
+      </div>
+      <ion-list lines="none" class="home-recent__list">
+        @for (entry of recentEntries(); track entry.id) {
+          <ion-item class="home-recent__item" lines="none">
+            <div
+              class="home-recent__indicator"
+              [class.home-recent__indicator--income]="entry.type === entryType.INCOME"
+              [class.home-recent__indicator--expense]="entry.type === entryType.EXPENSE"
+            ></div>
+            <ion-label>
+              <span class="home-recent__description">{{ entry.description || 'Sin descripción' }}</span>
+            </ion-label>
+            <span
+              slot="end"
+              class="home-recent__amount"
+              [class.home-recent__amount--income]="entry.type === entryType.INCOME"
+              [class.home-recent__amount--expense]="entry.type === entryType.EXPENSE"
+            >
+              {{ formatEntryAmount(entry) }}
+            </span>
+          </ion-item>
+        }
+      </ion-list>
+    </div>
+  }
 </ion-content>
 
 <app-new-entry-modal

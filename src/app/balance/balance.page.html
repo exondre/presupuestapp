@@ -22,10 +22,14 @@
 <ion-content [fullscreen]="true" class="balance-content">
   @if (groups().length === 0) {
     <div class="empty-state">
+      <ion-icon name="wallet-outline" class="empty-state__icon" aria-hidden="true"></ion-icon>
       <p class="empty-state__title">Aún no registras transacciones</p>
       <p class="empty-state__subtitle">
         Cuando agregues transacciones aparecerán aquí.
       </p>
+      <ion-button class="empty-state__cta" fill="outline" (click)="openEntryModal(null)">
+        Agregar transacción
+      </ion-button>
     </div>
   } @else {
     @let summary = displayedMonthSummary();

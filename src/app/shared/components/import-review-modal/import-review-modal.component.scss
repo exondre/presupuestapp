@@ -23,7 +23,7 @@
 }
 
 .import-review-list {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -75,7 +75,7 @@
   margin-top: 0.25rem;
   padding: 0.35rem 0.5rem;
   background: rgba(var(--ion-color-warning-rgb), 0.1);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   white-space: normal;
 }
 

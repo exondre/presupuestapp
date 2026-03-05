@@ -1,6 +1,7 @@
 import { Component, EnvironmentInjector, inject } from '@angular/core';
 import {
   IonIcon,
+  IonLabel,
   IonTabBar,
   IonTabButton,
   IonTabs,
@@ -21,7 +22,7 @@ import { MetaThemeColorService } from '../shared/services/meta-theme-color.servi
   selector: 'app-tabs',
   templateUrl: 'tabs.page.html',
   styleUrls: ['tabs.page.scss'],
-  imports: [IonTabs, IonTabBar, IonTabButton, IonIcon],
+  imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel],
 })
 export class TabsPage {
   public environmentInjector = inject(EnvironmentInjector);

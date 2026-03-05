@@ -1,5 +1,5 @@
 ion-modal.new-entry-modal {
-  --border-radius: 28px 28px 0 0;
+  --border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   --max-width: 480px;
 }
 
@@ -11,7 +11,7 @@ ion-modal.new-entry-modal {
 }
 
 .modal-content ion-list {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: visible;
 }
 
