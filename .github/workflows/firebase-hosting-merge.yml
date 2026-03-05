@@ -6,19 +6,30 @@ on:
   push:
     branches:
       - main
+permissions:
+  contents: read
+concurrency:
+  group: firebase-hosting-live-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build_and_deploy:
     name: 👷 Firebase deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: 🧾 Checkout repo
         uses: actions/checkout@v4
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - name: ⚙️ Setup Node (npm cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
 
-      - name: 🧱 Install Ionic CLI
-        run: npm install -g @ionic/cli
+      - name: 📦 Install dependencies
+        env:
+          NPM_CONFIG_ENGINE_STRICT: "true"
+        run: npm ci --no-audit --no-fund
 
       - name: 🔐 Inject environment variables
         env:
@@ -30,11 +41,34 @@ jobs:
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID }}
         run: |
+          required_vars=(
+            FIREBASE_API_KEY
+            FIREBASE_AUTH_DOMAIN
+            FIREBASE_PROJECT_ID
+            FIREBASE_STORAGE_BUCKET
+            FIREBASE_MESSAGING_SENDER_ID
+            FIREBASE_APP_ID
+            FIREBASE_MEASUREMENT_ID
+          )
+
+          for variable_name in "${required_vars[@]}"; do
+            if [ -z "${!variable_name:-}" ]; then
+              echo "::error::Missing required secret: ${variable_name}"
+              exit 1
+            fi
+          done
+
           envsubst < src/environments/environment.prod.ts.template > src/environments/environment.prod.ts
 
+          if grep -nE '\$\{[A-Z0-9_]+\}' src/environments/environment.prod.ts; then
+            echo "::error::Found unresolved placeholders in src/environments/environment.prod.ts after envsubst"
+            exit 1
+          fi
+
       - name: 🏗️ Build Ionic app
-        run: ionic build --prod
+        run: npm run build -- --configuration production
         env:
+          CI: "true"
           NODE_ENV: production
 
       - name: 🚀 Deploy to Firebase Hosting
@@ -45,4 +79,4 @@ jobs:
           channelId: live
           projectId: presupuestapp-d0b94
         env:
-          FIREBASE_CLI_EXPERIMENTS: webframeworks
+          CI: "true"
