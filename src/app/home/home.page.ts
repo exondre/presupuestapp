@@ -2,11 +2,14 @@ import { Component, ViewChild, computed, inject } from '@angular/core';
 import {
   IonButton,
   IonContent,
+  IonIcon,
   IonItem,
   IonLabel,
   IonList,
   NavController,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { repeatOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import {
   EntryCreation,
@@ -15,6 +18,13 @@ import {
 } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import { UtilsService } from '../shared/services/utils.service';
+import { resolveInstallmentDisplayDetailsFromEntry } from '../shared/utils/recurrence-installment-display.util';
+
+interface HomeRecentEntryViewModel extends EntryData {
+  dateLabel: string;
+  installmentLabel?: string;
+  isRecurring: boolean;
+}
 
 @Component({
   selector: 'app-home',
@@ -26,18 +36,34 @@ import { UtilsService } from '../shared/services/utils.service';
     IonList,
     IonItem,
     IonLabel,
+    IonIcon,
     NewEntryModalComponent,
   ],
 })
 export class HomePage {
+  private static readonly chileTimeZone = 'America/Santiago';
+
   @ViewChild('newEntryModal')
   private modal?: NewEntryModalComponent;
 
   private readonly entryService = inject(EntryService);
   private readonly utilsService = inject(UtilsService);
   private readonly navController = inject(NavController);
+  private readonly recentDateFormatter = new Intl.DateTimeFormat('es-CL', {
+    timeZone: HomePage.chileTimeZone,
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   protected readonly entryType = EntryType;
+
+  constructor() {
+    addIcons({
+      'repeat-outline': repeatOutline,
+    });
+  }
 
   /** Localized label for the current month (e.g. "marzo 2026"). */
   protected readonly currentMonthLabel = computed(() => {
@@ -68,13 +94,25 @@ export class HomePage {
 
   /** Most recent entries for the current month (up to 5). */
   protected readonly recentEntries = computed(() => {
-    const entries = this.entryService.filterEntriesByMonth();
+    const now = new Date();
+    const entries = this.entryService
+      .filterEntriesByMonth(now)
+      .filter((entry) => {
+        const occurrenceDate = new Date(entry.date);
+        if (Number.isNaN(occurrenceDate.getTime())) {
+          return false;
+        }
+
+        return occurrenceDate.getTime() <= now.getTime();
+      });
+
     return [...entries]
       .sort(
         (a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime(),
       )
-      .slice(0, 5);
+      .slice(0, 5)
+      .map((entry) => this.buildRecentEntryViewModel(entry));
   });
 
   /**
@@ -85,6 +123,39 @@ export class HomePage {
    */
   protected formatEntryAmount(entry: EntryData): string {
     return this.utilsService.formatAmount(entry.amount);
+  }
+
+  /**
+   * Builds the view model used to render a recent entry row.
+   *
+   * @param entry Entry to transform.
+   * @returns A home-specific recent entry view model.
+   */
+  private buildRecentEntryViewModel(entry: EntryData): HomeRecentEntryViewModel {
+    return {
+      ...entry,
+      dateLabel: this.formatRecentDate(entry.date),
+      installmentLabel: resolveInstallmentDisplayDetailsFromEntry(entry)?.installmentLabel,
+      isRecurring: entry.recurrence?.frequency === 'monthly',
+    };
+  }
+
+  /**
+   * Formats an ISO date into a compact localized date-time label.
+   *
+   * @param isoDate ISO date string to format.
+   * @returns Formatted date-time label in Spanish locale.
+   */
+  private formatRecentDate(isoDate: string): string {
+    const parsedDate = new Date(isoDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return '';
+    }
+
+    return this.recentDateFormatter
+      .format(parsedDate)
+      .replace('.', '')
+      .toLowerCase();
   }
 
   /**

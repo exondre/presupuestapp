@@ -43,6 +43,21 @@
             ></div>
             <ion-label>
               <span class="home-recent__description">{{ entry.description || 'Sin descripción' }}</span>
+              <span class="home-recent__meta">
+                @if (entry.dateLabel) {
+                  <span class="home-recent__meta-date">{{ entry.dateLabel }}</span>
+                }
+                @if (entry.installmentLabel) {
+                  <span class="home-recent__meta-installment">· {{ entry.installmentLabel }}</span>
+                }
+                @if (entry.isRecurring) {
+                  <span class="home-recent__meta-recurring">
+                    ·
+                    <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+                    Recurrente
+                  </span>
+                }
+              </span>
             </ion-label>
             <span
               slot="end"
