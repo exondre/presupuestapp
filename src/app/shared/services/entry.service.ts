@@ -7,6 +7,7 @@ import {
   EntryRecurrenceCreation,
   EntryRecurrenceTermination,
   EntryType,
+  IdempotencyInfo,
 } from '../models/entry-data.model';
 import { MonthSummaryItem } from '../models/month-summary-item.model';
 import { LocalStorageService } from './local-storage.service';
@@ -144,6 +145,94 @@ export class EntryService {
     if (recurrence) {
       this.ensureRecurringEntriesUpTo(new Date());
     }
+  }
+
+  /**
+   * Adds multiple entries to the in-memory collection in a single persistence operation.
+   *
+   * @param entries Array of entry data to store.
+   */
+  addEntries(entries: EntryCreation[]): void {
+    let hasRecurrence = false;
+    const newEntries: EntryData[] = entries.map((entry) => {
+      const { type } = this.normalizeType(entry.type);
+      const newEntry: EntryData = {
+        id: this.generateId(),
+        amount: entry.amount,
+        date: entry.date,
+        description: entry.description,
+        type,
+        updatedAt: new Date().toISOString(),
+        idempotencyInfo: entry.idempotencyInfo,
+      };
+
+      const recurrence = this.createRecurrenceMetadata(entry.recurrence, newEntry.date);
+      if (recurrence) {
+        newEntry.recurrence = recurrence;
+        hasRecurrence = true;
+      }
+
+      return newEntry;
+    });
+
+    const updatedEntries = [...this.entriesSubject.value, ...newEntries];
+    this.persistEntries(updatedEntries);
+
+    if (hasRecurrence) {
+      this.ensureRecurringEntriesUpTo(new Date());
+    }
+  }
+
+  /**
+   * Appends idempotency info to an existing entry without changing its other fields.
+   *
+   * @param entryId Identifier of the entry to update.
+   * @param info Idempotency entries to append.
+   */
+  appendIdempotencyInfo(entryId: string, info: IdempotencyInfo[]): void {
+    const currentEntries = this.entriesSubject.value;
+    const entryIndex = currentEntries.findIndex((e) => e.id === entryId);
+
+    if (entryIndex === -1) {
+      return;
+    }
+
+    const entry = currentEntries[entryIndex];
+    const merged = [...(entry.idempotencyInfo ?? []), ...info];
+    const updatedEntries = [...currentEntries];
+    updatedEntries[entryIndex] = { ...entry, idempotencyInfo: merged };
+    this.persistEntries(updatedEntries);
+  }
+
+  /**
+   * Converts an existing non-recurring entry into a recurring series.
+   * Does nothing if the entry already has recurrence metadata.
+   *
+   * @param entryId Identifier of the entry to convert.
+   * @param recurrence Recurrence creation payload to apply.
+   */
+  convertToRecurring(entryId: string, recurrence: EntryRecurrenceCreation): void {
+    const currentEntries = this.entriesSubject.value;
+    const entryIndex = currentEntries.findIndex((e) => e.id === entryId);
+
+    if (entryIndex === -1) {
+      return;
+    }
+
+    const entry = currentEntries[entryIndex];
+    if (entry.recurrence) {
+      return;
+    }
+
+    const metadata = this.createRecurrenceMetadata(recurrence, entry.date);
+    if (!metadata) {
+      return;
+    }
+
+    const updatedEntries = [...currentEntries];
+    updatedEntries[entryIndex] = { ...entry, recurrence: metadata };
+    this.persistEntries(updatedEntries);
+    this.ensureRecurringEntriesUpTo(new Date());
   }
 
   /**

@@ -12,6 +12,9 @@
       </span>
       <span class="balance-item__description">
         {{ item().description }}
+        @if (item().isRecurring) {
+          <ion-icon name="repeat-outline" class="balance-item__recurring" aria-label="Recurrente"></ion-icon>
+        }
         <span class="balance-item__time">
           ({{ item().timeLabel }})
         </span>

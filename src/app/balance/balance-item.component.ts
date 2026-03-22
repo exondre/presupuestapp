@@ -9,7 +9,7 @@ import {
   IonLabel,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { arrowUpCircleOutline, createOutline, trashOutline } from 'ionicons/icons';
+import { arrowUpCircleOutline, createOutline, repeatOutline, trashOutline } from 'ionicons/icons';
 import { EntryType } from '../shared/models/entry-data.model';
 
 /**
@@ -22,6 +22,7 @@ export interface BalanceItemViewModel {
   timeLabel: string;
   timestamp: number;
   type: EntryType;
+  isRecurring: boolean;
 }
 
 /**
@@ -61,6 +62,7 @@ export class BalanceItemComponent {
       'create-outline': createOutline,
       'trash-outline': trashOutline,
       'arrow-up-circle-outline': arrowUpCircleOutline,
+      'repeat-outline': repeatOutline,
     });
   }
 

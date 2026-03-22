@@ -20,7 +20,7 @@ ion-title {
 
 .balance-summary-card {
   margin: 1rem 1rem;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
 
   &__header {
     display: flex;
@@ -107,39 +107,15 @@ ion-title {
 }
 
 .balance-add-entry {
-  --background: red;
-  --background-activated-opacity: 0.12;
-
   ion-fab-button {
-    --background: transparent;
-    --border-color: var(--ion-color-primary);
-    --border-width: 1px;
-    --border-style: solid;
-
-    // --background-activated: var(--ion-color-primary);
+    --background: var(--ion-color-primary);
+    --background-activated: var(--ion-color-primary-shade);
+    --box-shadow: 0 4px 12px rgba(255, 115, 32, 0.35);
   }
 
   ion-icon {
-    color: var(--ion-color-primary);
+    color: #ffffff;
     font-size: 1.5rem;
   }
 }
 
-
-
-.empty-state {
-  margin-top: 4rem;
-  text-align: center;
-  color: var(--ion-color-medium);
-
-  &__title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-
-  &__subtitle {
-    font-size: 0.9375rem;
-    margin: 0;
-  }
-}

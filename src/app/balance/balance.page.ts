@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { ActionSheetController, AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar, NavController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, chevronBackOutline, informationCircleOutline } from 'ionicons/icons';
+import { addOutline, chevronBackOutline, informationCircleOutline, walletOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
@@ -152,6 +152,7 @@ export class BalancePage {
       'information-circle-outline': informationCircleOutline,
       'add-outline': addOutline,
       'chevron-back-outline': chevronBackOutline,
+      'wallet-outline': walletOutline,
     });
 
     this.activatedRoute.queryParamMap
@@ -359,6 +360,7 @@ export class BalancePage {
         timeLabel: this.formatTime(occurrenceDate),
         timestamp: occurrenceDate.getTime(),
         type: entry.type,
+        isRecurring: entry.recurrence?.frequency === 'monthly',
       });
     });
 

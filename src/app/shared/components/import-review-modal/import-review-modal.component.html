@@ -1,0 +1,185 @@
+<ion-modal
+  [isOpen]="isOpen()"
+  [presentingElement]="presentingElement()"
+  (didDismiss)="onDidDismiss()"
+>
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button (click)="onDidDismiss()">Cerrar</ion-button>
+        </ion-buttons>
+        <ion-title>Revisar importación</ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="import-review-content">
+      <div class="import-review-summary ion-padding">
+        <ion-badge color="success">{{ readyCount() }} listos</ion-badge>
+        <ion-badge color="warning">{{ potentialCount() }} por revisar</ion-badge>
+        <ion-badge color="medium">{{ discardedCount() }} descartados</ion-badge>
+      </div>
+
+      <!-- Potential Duplicates (main review area) -->
+      <div class="import-review-section">
+        <ion-text color="dark" class="import-review-section__title">
+          <h3>Posibles duplicados</h3>
+        </ion-text>
+
+        @if (potentialDuplicates().length === 0) {
+          <div class="import-review-empty ion-padding">
+            <ion-text color="medium">
+              <p>No hay posibles duplicados por revisar.</p>
+            </ion-text>
+          </div>
+        }
+
+        <ion-list lines="full" class="import-review-list">
+          @for (duplicate of potentialDuplicates(); track duplicate.importedEntry) {
+            <ion-item class="import-review-item">
+              <ion-label>
+                <h2 class="import-review-item__description">{{ duplicate.importedEntry.description || 'Sin descripción' }}</h2>
+
+                <div class="import-review-item__details">
+                  <span class="import-review-item__amount">{{ utils.formatAmount(duplicate.importedEntry.amount) }}</span>
+                  <span class="import-review-item__date">{{ formatDate(duplicate.importedEntry.date) }}</span>
+                  @if (duplicate.importedEntry.installmentInfo) {
+                    <ion-badge color="tertiary" class="import-review-item__installment">
+                      Cuota {{ duplicate.importedEntry.installmentInfo.current }} de {{ duplicate.importedEntry.installmentInfo.total }}
+                    </ion-badge>
+                  }
+                </div>
+
+                <ion-note class="import-review-item__match">
+                  <ion-icon name="swap-horizontal-outline" class="import-review-item__match-icon"></ion-icon>
+                  Similar a: {{ duplicate.matchedEntry.description || 'Sin descripción' }}
+                  · {{ utils.formatAmount(duplicate.matchedEntry.amount) }}
+                  · {{ formatDate(duplicate.matchedEntry.date) }}
+                </ion-note>
+
+                <div class="import-review-item__actions">
+                  <ion-button
+                    size="small"
+                    color="success"
+                    fill="outline"
+                    (click)="markAsNew(duplicate)"
+                  >
+                    <ion-icon slot="start" name="add-circle-outline"></ion-icon>
+                    Es nuevo
+                  </ion-button>
+                  <ion-button
+                    size="small"
+                    color="danger"
+                    fill="outline"
+                    (click)="markAsDuplicate(duplicate)"
+                  >
+                    <ion-icon slot="start" name="close-circle-outline"></ion-icon>
+                    Es duplicado
+                  </ion-button>
+                </div>
+              </ion-label>
+            </ion-item>
+          }
+        </ion-list>
+      </div>
+
+      <!-- Accordion sections -->
+      <ion-accordion-group [multiple]="true" class="import-review-accordions">
+        <!-- Discarded entries -->
+        <ion-accordion value="discarded">
+          <ion-item slot="header" color="light">
+            <ion-label>Descartados por duplicado ({{ discardedCount() }})</ion-label>
+          </ion-item>
+          <div slot="content">
+            @if (discardedEntries().length === 0) {
+              <div class="import-review-empty ion-padding">
+                <ion-text color="medium">
+                  <p>No hay registros descartados.</p>
+                </ion-text>
+              </div>
+            }
+            <ion-list lines="full" class="import-review-list import-review-list--compact">
+              @for (entry of discardedEntries(); track entry) {
+                <ion-item class="import-review-item import-review-item--compact">
+                  <ion-label>
+                    <h3>{{ entry.description || 'Sin descripción' }}</h3>
+                    <p>
+                      {{ utils.formatAmount(entry.amount) }} · {{ formatDate(entry.date) }}
+                      @if (entry.installmentInfo) {
+                        · Cuota {{ entry.installmentInfo.current }} de {{ entry.installmentInfo.total }}
+                      }
+                    </p>
+                  </ion-label>
+                  <ion-button
+                    slot="end"
+                    size="small"
+                    fill="clear"
+                    color="primary"
+                    (click)="restoreFromDiscarded(entry)"
+                  >
+                    <ion-icon slot="start" name="refresh-outline"></ion-icon>
+                    Restaurar
+                  </ion-button>
+                </ion-item>
+              }
+            </ion-list>
+          </div>
+        </ion-accordion>
+
+        <!-- Ready to import entries -->
+        <ion-accordion value="ready">
+          <ion-item slot="header" color="light">
+            <ion-label>Listos para importar ({{ readyCount() }})</ion-label>
+          </ion-item>
+          <div slot="content">
+            @if (readyToImport().length === 0) {
+              <div class="import-review-empty ion-padding">
+                <ion-text color="medium">
+                  <p>No hay registros listos para importar.</p>
+                </ion-text>
+              </div>
+            }
+            <ion-list lines="full" class="import-review-list import-review-list--compact">
+              @for (entry of readyToImport(); track entry) {
+                <ion-item class="import-review-item import-review-item--compact">
+                  <ion-label>
+                    <h3>{{ entry.description || 'Sin descripción' }}</h3>
+                    <p>
+                      {{ utils.formatAmount(entry.amount) }} · {{ formatDate(entry.date) }}
+                      @if (entry.installmentInfo) {
+                        · Cuota {{ entry.installmentInfo.current }} de {{ entry.installmentInfo.total }}
+                      }
+                    </p>
+                  </ion-label>
+                  <ion-button
+                    slot="end"
+                    size="small"
+                    fill="clear"
+                    color="danger"
+                    (click)="removeFromReady(entry)"
+                  >
+                    <ion-icon slot="start" name="remove-circle-outline"></ion-icon>
+                    Quitar
+                  </ion-button>
+                </ion-item>
+              }
+            </ion-list>
+          </div>
+        </ion-accordion>
+      </ion-accordion-group>
+
+      <!-- Confirm import button -->
+      <div class="import-review-footer ion-padding">
+        <ion-button
+          expand="block"
+          color="primary"
+          [disabled]="readyCount() === 0"
+          (click)="confirmImport()"
+        >
+          <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
+          Importar {{ readyCount() }} transacciones
+        </ion-button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
