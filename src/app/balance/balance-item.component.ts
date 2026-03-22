@@ -19,6 +19,7 @@ export interface BalanceItemViewModel {
   id: string;
   amountLabel: string;
   description: string;
+  installmentLabel?: string;
   timeLabel: string;
   timestamp: number;
   type: EntryType;

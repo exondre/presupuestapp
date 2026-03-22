@@ -44,6 +44,7 @@ import {
   EntryType,
   EntryUpdatePayload,
 } from '../../models/entry-data.model';
+import { resolveInstallmentDisplayDetailsFromEntry } from '../../utils/recurrence-installment-display.util';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline } from 'ionicons/icons';
 
@@ -105,6 +106,7 @@ export class NewEntryModalComponent implements AfterViewInit {
   protected isTypeReadOnly = false;
   protected isRecurrenceReadOnly = false;
   protected recurrenceEndHint: string | null = null;
+  protected recurrenceInstallmentLabel: string | null = null;
 
   protected modalTitle = 'Nueva transacción';
 
@@ -313,6 +315,7 @@ export class NewEntryModalComponent implements AfterViewInit {
     this.isTypeReadOnly = false;
     this.isRecurrenceReadOnly = false;
     this.recurrenceEndHint = null;
+    this.recurrenceInstallmentLabel = null;
   }
 
   /**
@@ -781,23 +784,54 @@ export class NewEntryModalComponent implements AfterViewInit {
    * Refreshes the recurrence end hint displayed to the user.
    */
   private updateRecurrenceEndHint(): void {
-    console.debug('Updating recurrence end hint.');
-    this.recurrenceEndHint = this.buildRecurrenceEndHint();
-    console.debug('Recurrence end hint updated:', this.recurrenceEndHint);
+    if (this.recurrenceModeControl.getRawValue() !== 'occurrences') {
+      this.recurrenceInstallmentLabel = null;
+      this.recurrenceEndHint = null;
+      return;
+    }
+
+    if (this.isEditMode) {
+      const editHints = this.buildEditRecurrenceHints();
+      this.recurrenceInstallmentLabel = editHints?.installmentLabel ?? null;
+      this.recurrenceEndHint = editHints?.lastOccurrenceLabel ?? null;
+      return;
+    }
+
+    this.recurrenceInstallmentLabel = null;
+    this.recurrenceEndHint = this.buildCreationRecurrenceEndHint();
   }
 
   /**
-   * Builds the recurrence end hint when the user selects a limited number of occurrences.
+   * Builds recurrence hints for an entry opened in edit mode.
    *
-   * @returns The user-facing hint string or null when not applicable.
+   * @returns Installment and final occurrence labels, or null when the recurrence is not valid.
    */
-  private buildRecurrenceEndHint(): string | null {
-    if (this.recurrenceModeControl.getRawValue() !== 'occurrences') {
+  private buildEditRecurrenceHints():
+    | { installmentLabel: string; lastOccurrenceLabel: string }
+    | null {
+    if (!this.editingEntry) {
       return null;
     }
 
+    const displayDetails = resolveInstallmentDisplayDetailsFromEntry(this.editingEntry);
+    if (!displayDetails) {
+      return null;
+    }
+
+    return {
+      installmentLabel: displayDetails.installmentLabel,
+      lastOccurrenceLabel: this.monthLabelFormatter.format(displayDetails.lastOccurrenceDate),
+    };
+  }
+
+  /**
+   * Builds the recurrence end hint while creating a new limited recurrence.
+   *
+   * @returns The user-facing hint string or null when not applicable.
+   */
+  private buildCreationRecurrenceEndHint(): string | null {
     const sanitizedCount = this.sanitizeAmount(
-      this.recurrenceCountControl.getRawValue()
+      this.recurrenceCountControl.getRawValue(),
     );
     if (sanitizedCount.length === 0) {
       return null;
@@ -824,8 +858,7 @@ export class NewEntryModalComponent implements AfterViewInit {
     }
 
     const lastOccurrence = this.addMonths(start, total - 1);
-    const label = this.monthLabelFormatter.format(lastOccurrence);
-    return `${label}`;
+    return this.monthLabelFormatter.format(lastOccurrence);
   }
 
   /**
