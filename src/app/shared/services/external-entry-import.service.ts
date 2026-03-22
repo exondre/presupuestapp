@@ -124,7 +124,7 @@ export class ExternalEntryImportService {
 
       try {
         const transactionDate = this.parseDate(rawDate);
-        const description = this.removeTrailingAsterisk(String(rawDescription ?? '').trim());
+        const description = this.normalizeFalabellaDescription(String(rawDescription ?? ''));
         const signedAmount = this.parseAmount(rawValorCuota);
 
         if (!transactionDate || signedAmount === 0) {
@@ -387,6 +387,31 @@ export class ExternalEntryImportService {
    */
   private removeTrailingAsterisk(description: string): string {
     return description.replace(/\*$/, '');
+  }
+
+  /**
+   * Removes the Falabella purchase prefix when it appears at the start.
+   *
+   * @param description The description to normalize.
+   * @returns The description without a leading "COMPRA" prefix.
+   */
+  private removeLeadingCompraPrefix(description: string): string {
+    return description.replace(/^COMPRA\s+/i, '');
+  }
+
+  /**
+   * Normalizes a Falabella/CMR description for stable storage and idempotency:
+   * trims outer spaces, removes a trailing unconfirmed marker (*), removes a
+   * leading "COMPRA" prefix, and trims again.
+   *
+   * @param rawDescription Raw description value from the import file.
+   * @returns The normalized description string.
+   */
+  private normalizeFalabellaDescription(rawDescription: string): string {
+    const trimmedDescription = rawDescription.trim();
+    const withoutTrailingAsterisk = this.removeTrailingAsterisk(trimmedDescription);
+    const withoutCompraPrefix = this.removeLeadingCompraPrefix(withoutTrailingAsterisk);
+    return withoutCompraPrefix.trim();
   }
 
   /**
