@@ -20,9 +20,20 @@
     font-size: 0.875rem;
     text-transform: capitalize;
     color: var(--ion-color-medium);
+    line-height: 1.35;
 
     &::first-letter {
       text-transform: uppercase;
+    }
+
+    .balance-item__description-text {
+      color: inherit;
+    }
+
+    .balance-item__installment {
+      color: var(--ion-color-medium-shade);
+      font-weight: 500;
+      text-transform: none;
     }
 
     .balance-item__recurring {
@@ -37,6 +48,7 @@
       font-size: 0.675rem;
       font-style: italic;
       text-transform: none;
+      white-space: nowrap;
     }
   }
 }

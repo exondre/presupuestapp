@@ -7,6 +7,7 @@ import { addOutline, chevronBackOutline, informationCircleOutline, walletOutline
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
+import { resolveInstallmentDisplayDetailsFromEntry } from '../shared/utils/recurrence-installment-display.util';
 import {
   BalanceItemComponent,
   BalanceItemViewModel,
@@ -357,6 +358,7 @@ export class BalancePage {
         id: entry.id,
         amountLabel: this.formatAmount(entry.amount),
         description: this.resolveDescription(entry.description),
+        installmentLabel: this.resolveInstallmentLabel(entry),
         timeLabel: this.formatTime(occurrenceDate),
         timestamp: occurrenceDate.getTime(),
         type: entry.type,
@@ -426,6 +428,16 @@ export class BalancePage {
       key: `${year}-${month}-${day}`,
       label: `${weekday} ${day} ${monthName} ${year}`,
     };
+  }
+
+  /**
+   * Resolves the installment progress label shown for fixed monthly recurrences.
+   *
+   * @param entry Entry used to derive installment details.
+   * @returns A localized installment label or undefined when not applicable.
+   */
+  private resolveInstallmentLabel(entry: EntryData): string | undefined {
+    return resolveInstallmentDisplayDetailsFromEntry(entry)?.installmentLabel;
   }
 
   /**

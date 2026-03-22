@@ -11,7 +11,14 @@
         {{ item().amountLabel }}
       </span>
       <span class="balance-item__description">
-        {{ item().description }}
+        <span class="balance-item__description-text">
+          {{ item().description }}
+        </span>
+        @if (item().installmentLabel) {
+          <span class="balance-item__installment">
+            · {{ item().installmentLabel }}
+          </span>
+        }
         @if (item().isRecurring) {
           <ion-icon name="repeat-outline" class="balance-item__recurring" aria-label="Recurrente"></ion-icon>
         }
