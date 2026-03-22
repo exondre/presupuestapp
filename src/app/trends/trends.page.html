@@ -1,0 +1,79 @@
+<ion-header [translucent]="false">
+  <ion-toolbar>
+    <ion-title>Tendencias</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="trends-content">
+  @if (!hasData()) {
+    <div class="empty-state">
+      <ion-icon name="trending-up-outline" class="empty-state__icon"></ion-icon>
+      <p class="empty-state__title">Sin datos para mostrar</p>
+      <p class="empty-state__subtitle">
+        Cuando tengas transacciones en al menos un mes, verás tus tendencias aquí.
+      </p>
+    </div>
+  } @else {
+    @let data = trendsData();
+
+    <div class="trends-legend">
+      <div class="trends-legend__item">
+        <span class="trends-legend__dot trends-legend__dot--income"></span>
+        <span class="trends-legend__label">Ingresos</span>
+      </div>
+      <div class="trends-legend__item">
+        <span class="trends-legend__dot trends-legend__dot--total"></span>
+        <span class="trends-legend__label">Total gastos</span>
+      </div>
+      <div class="trends-legend__item">
+        <span class="trends-legend__dot trends-legend__dot--common"></span>
+        <span class="trends-legend__label">Gastos</span>
+      </div>
+      <div class="trends-legend__item">
+        <span class="trends-legend__dot trends-legend__dot--recurring"></span>
+        <span class="trends-legend__label">Recurrentes</span>
+      </div>
+      <div class="trends-legend__item">
+        <span class="trends-legend__dot trends-legend__dot--installment"></span>
+        <span class="trends-legend__label">Cuotas</span>
+      </div>
+    </div>
+
+    <div class="trends-chart-scroll">
+      <div class="trends-chart"
+           [style.min-width.px]="data.months.length * 76">
+        @for (month of data.months; track month.monthKey) {
+          <div class="trends-month"
+               [class.trends-month--current]="month.isCurrent">
+            <div class="trends-month__bars">
+              <div class="trends-bar trends-bar--income"
+                   [style.height.%]="barHeight(month.income, data.maxAmount)"
+                   [attr.aria-label]="'Ingresos: ' + formatAmount(month.income)">
+              </div>
+              <div class="trends-bar trends-bar--total"
+                   [style.height.%]="barHeight(month.totalExpense, data.maxAmount)"
+                   [attr.aria-label]="'Total gastos: ' + formatAmount(month.totalExpense)">
+              </div>
+              <div class="trends-bar trends-bar--common"
+                   [style.height.%]="barHeight(month.commonExpense, data.maxAmount)"
+                   [attr.aria-label]="'Gastos: ' + formatAmount(month.commonExpense)">
+              </div>
+              <div class="trends-bar trends-bar--recurring"
+                   [style.height.%]="barHeight(month.recurringExpense, data.maxAmount)"
+                   [attr.aria-label]="'Recurrentes: ' + formatAmount(month.recurringExpense)">
+              </div>
+              <div class="trends-bar trends-bar--installment"
+                   [style.height.%]="barHeight(month.installmentExpense, data.maxAmount)"
+                   [attr.aria-label]="'Cuotas: ' + formatAmount(month.installmentExpense)">
+              </div>
+            </div>
+
+            <span class="trends-month__label">
+              {{ monthLabel(month) }}
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</ion-content>

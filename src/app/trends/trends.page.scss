@@ -1,0 +1,139 @@
+.trends-content {
+  --background: #f7f7f7;
+}
+
+.trends-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 0.5rem;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  &__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+
+    &--income {
+      background: var(--ion-color-success);
+    }
+
+    &--common {
+      background: var(--ion-color-danger);
+    }
+
+    &--recurring {
+      background: var(--ion-color-expense);
+    }
+
+    &--installment {
+      background: var(--ion-color-tertiary);
+    }
+
+    &--total {
+      background: var(--ion-color-dark);
+    }
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+  }
+}
+
+.trends-chart-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.trends-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 240px;
+  padding-bottom: 2rem;
+  position: relative;
+}
+
+.trends-month {
+  flex: 1;
+  min-width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  height: 100%;
+
+  &--current {
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px -4px -2rem;
+      background: rgba(255, 115, 32, 0.07);
+      border-radius: var(--radius-md);
+      z-index: 0;
+    }
+
+    .trends-month__label {
+      font-weight: 700;
+      color: var(--ion-color-primary);
+    }
+  }
+
+  &__bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    flex: 1;
+    width: 100%;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__label {
+    margin-top: 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+    text-transform: capitalize;
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+  }
+}
+
+.trends-bar {
+  width: 11px;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height 0.3s ease;
+
+  &--income {
+    background: var(--ion-color-success);
+  }
+
+  &--common {
+    background: var(--ion-color-danger);
+  }
+
+  &--recurring {
+    background: var(--ion-color-expense);
+  }
+
+  &--installment {
+    background: var(--ion-color-tertiary);
+  }
+
+  &--total {
+    background: var(--ion-color-dark);
+  }
+}
