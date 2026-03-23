@@ -40,11 +40,12 @@
     </div>
 
     <div class="trends-chart-scroll">
-      <div class="trends-chart"
-           [style.min-width.px]="data.months.length * 76">
+      <div class="trends-chart">
         @for (month of data.months; track month.monthKey) {
           <div class="trends-month"
-               [class.trends-month--current]="month.isCurrent">
+               [class.trends-month--current]="month.isCurrent"
+               [class.trends-month--selected]="selectedMonthKey() === month.monthKey"
+               (click)="selectMonth(month.monthKey)">
             <div class="trends-month__bars">
               <div class="trends-bar trends-bar--income"
                    [style.height.%]="barHeight(month.income, data.maxAmount)"
@@ -75,5 +76,82 @@
         }
       </div>
     </div>
+
+    @if (selectedMonthDetail(); as detail) {
+      <div class="trends-detail">
+        <div class="trends-detail__title-row">
+          <h3 class="trends-detail__title">{{ detail.monthLabel }}</h3>
+          @if (detail.isFutureMonth) {
+            <span class="trends-detail__projected-badge">Proyectado</span>
+          }
+        </div>
+
+        <div class="trends-detail__section">
+          <div class="trends-detail__section-header">
+            <span class="trends-detail__dot trends-detail__dot--income"></span>
+            <span class="trends-detail__section-label">Total de ingresos</span>
+            <span class="trends-detail__section-amount">{{ formatAmount(detail.income.total) }}</span>
+          </div>
+          @for (entry of detail.income.entries; track $index) {
+            <div class="trends-detail__entry">
+              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="trends-detail__section">
+          <div class="trends-detail__section-header">
+            <span class="trends-detail__dot trends-detail__dot--common"></span>
+            <span class="trends-detail__section-label">Total de gastos</span>
+            <span class="trends-detail__section-amount">{{ formatAmount(detail.commonExpense.total) }}</span>
+          </div>
+          @for (entry of detail.commonExpense.topEntries; track $index) {
+            <div class="trends-detail__entry">
+              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+            </div>
+          }
+          @if (detail.commonExpense.remainingCount > 0) {
+            <div class="trends-detail__entry trends-detail__entry--more">
+              <span class="trends-detail__entry-desc">
+                y {{ detail.commonExpense.remainingCount }} más
+              </span>
+            </div>
+          }
+        </div>
+
+        <div class="trends-detail__section">
+          <div class="trends-detail__section-header">
+            <span class="trends-detail__dot trends-detail__dot--recurring"></span>
+            <span class="trends-detail__section-label">Total de gastos recurrentes</span>
+            <span class="trends-detail__section-amount">{{ formatAmount(detail.recurringExpense.total) }}</span>
+          </div>
+          @for (entry of detail.recurringExpense.entries; track $index) {
+            <div class="trends-detail__entry">
+              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="trends-detail__section">
+          <div class="trends-detail__section-header">
+            <span class="trends-detail__dot trends-detail__dot--installment"></span>
+            <span class="trends-detail__section-label">Total de gastos con cuotas</span>
+            <span class="trends-detail__section-amount">{{ formatAmount(detail.installmentExpense.total) }}</span>
+          </div>
+          @for (entry of detail.installmentExpense.entries; track $index) {
+            <div class="trends-detail__entry">
+              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+              @if (entry.installmentLabel) {
+                <span class="trends-detail__entry-installment">{{ entry.installmentLabel }}</span>
+              }
+              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
   }
 </ion-content>

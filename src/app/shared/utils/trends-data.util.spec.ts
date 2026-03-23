@@ -1,7 +1,10 @@
 import { EntryData, EntryType } from '../models/entry-data.model';
 import {
+  buildMonthDetailData,
   buildMonthKey,
   buildTrendsData,
+  categorizeMonthEntries,
+  projectFutureInstallmentEntries,
   resolveLastInstallmentMonth,
   TrendsChartData,
 } from './trends-data.util';
@@ -510,6 +513,303 @@ describe('trends data util', () => {
         expect(result.months.length).toBe(8);
         expect(result.months[7].monthKey).toBe('2026-08');
       });
+    });
+  });
+
+  describe('categorizeMonthEntries', () => {
+    it('returns four empty arrays for empty input', () => {
+      const result = categorizeMonthEntries([]);
+      expect(result.income).toEqual([]);
+      expect(result.common).toEqual([]);
+      expect(result.recurring).toEqual([]);
+      expect(result.installment).toEqual([]);
+    });
+
+    it('routes income entries to income', () => {
+      const entry = buildEntry({ type: EntryType.INCOME });
+      const result = categorizeMonthEntries([entry]);
+      expect(result.income.length).toBe(1);
+      expect(result.common.length).toBe(0);
+    });
+
+    it('routes non-recurring expenses to common', () => {
+      const entry = buildEntry();
+      const result = categorizeMonthEntries([entry]);
+      expect(result.common.length).toBe(1);
+    });
+
+    it('routes indefinite recurring expenses to recurring', () => {
+      const entry = buildRecurringEntry('2026-03-15T12:00:00.000Z');
+      const result = categorizeMonthEntries([entry]);
+      expect(result.recurring.length).toBe(1);
+    });
+
+    it('routes installment expenses to installment', () => {
+      const entry = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6);
+      const result = categorizeMonthEntries([entry]);
+      expect(result.installment.length).toBe(1);
+    });
+
+    it('categorizes mixed entries correctly', () => {
+      const entries = [
+        buildEntry({ id: 'i1', type: EntryType.INCOME }),
+        buildEntry({ id: 'e1' }),
+        buildRecurringEntry('2026-03-15T12:00:00.000Z'),
+        buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6),
+      ];
+      const result = categorizeMonthEntries(entries);
+      expect(result.income.length).toBe(1);
+      expect(result.common.length).toBe(1);
+      expect(result.recurring.length).toBe(1);
+      expect(result.installment.length).toBe(1);
+    });
+  });
+
+  describe('buildMonthDetailData', () => {
+    describe('past/current months', () => {
+      it('computes correct income total and entries', () => {
+        const inc1 = buildEntry({
+          id: 'i1', type: EntryType.INCOME, amount: 500000,
+          description: 'Sueldo',
+          date: '2026-03-05T12:00:00.000Z',
+        });
+        const inc2 = buildEntry({
+          id: 'i2', type: EntryType.INCOME, amount: 200000,
+          description: 'Freelance',
+          date: '2026-03-10T12:00:00.000Z',
+        });
+        const result = buildMonthDetailData(currentKey, [inc1, inc2], [], currentKey);
+
+        expect(result.income.total).toBe(700000);
+        expect(result.income.entries.length).toBe(2);
+        expect(result.income.entries[0].description).toBe('Sueldo');
+        expect(result.income.entries[1].description).toBe('Freelance');
+        expect(result.income.entries[0].isProjected).toBeFalse();
+      });
+
+      it('returns top 3 common expenses sorted by amount desc', () => {
+        const expenses = [
+          buildEntry({ id: 'e1', amount: 10000, description: 'Small' }),
+          buildEntry({ id: 'e2', amount: 50000, description: 'Big' }),
+          buildEntry({ id: 'e3', amount: 30000, description: 'Medium' }),
+          buildEntry({ id: 'e4', amount: 20000, description: 'Other' }),
+          buildEntry({ id: 'e5', amount: 5000, description: 'Tiny' }),
+        ];
+        const result = buildMonthDetailData(currentKey, expenses, [], currentKey);
+
+        expect(result.commonExpense.topEntries.length).toBe(3);
+        expect(result.commonExpense.topEntries[0].description).toBe('Big');
+        expect(result.commonExpense.topEntries[1].description).toBe('Medium');
+        expect(result.commonExpense.topEntries[2].description).toBe('Other');
+        expect(result.commonExpense.remainingCount).toBe(2);
+      });
+
+      it('returns 0 remainingCount when 3 or fewer common expenses', () => {
+        const expenses = [
+          buildEntry({ id: 'e1', amount: 10000, description: 'A' }),
+          buildEntry({ id: 'e2', amount: 20000, description: 'B' }),
+        ];
+        const result = buildMonthDetailData(currentKey, expenses, [], currentKey);
+
+        expect(result.commonExpense.topEntries.length).toBe(2);
+        expect(result.commonExpense.remainingCount).toBe(0);
+      });
+
+      it('computes correct common expense total including all entries', () => {
+        const expenses = [
+          buildEntry({ id: 'e1', amount: 10000 }),
+          buildEntry({ id: 'e2', amount: 20000 }),
+          buildEntry({ id: 'e3', amount: 30000 }),
+          buildEntry({ id: 'e4', amount: 40000 }),
+        ];
+        const result = buildMonthDetailData(currentKey, expenses, [], currentKey);
+
+        expect(result.commonExpense.total).toBe(100000);
+      });
+
+      it('computes correct recurring expense total and entries', () => {
+        const rec1 = buildRecurringEntry('2026-03-10T12:00:00.000Z', 30000);
+        const rec2 = buildEntry({
+          id: 'e-rec-2', amount: 15000, date: '2026-03-15T12:00:00.000Z',
+          recurrence: {
+            recurrenceId: 'rec-indef-2',
+            anchorDate: '2025-06-15T12:00:00.000Z',
+            occurrenceIndex: 0,
+            frequency: 'monthly',
+            termination: { mode: 'indefinite' },
+          },
+        });
+        const result = buildMonthDetailData(currentKey, [rec1, rec2], [], currentKey);
+
+        expect(result.recurringExpense.total).toBe(45000);
+        expect(result.recurringExpense.entries.length).toBe(2);
+      });
+
+      it('computes installment entries with installment labels', () => {
+        const inst = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6, 50000);
+        inst.description = 'FALABELLA';
+        const result = buildMonthDetailData(currentKey, [inst], [], currentKey);
+
+        expect(result.installmentExpense.total).toBe(50000);
+        expect(result.installmentExpense.entries.length).toBe(1);
+        expect(result.installmentExpense.entries[0].description).toBe('FALABELLA');
+        expect(result.installmentExpense.entries[0].installmentLabel).toBe('Cuota 3 de 6');
+        expect(result.installmentExpense.entries[0].isProjected).toBeFalse();
+      });
+
+      it('uses "Sin descripción" when description is missing', () => {
+        const entry = buildEntry({ description: undefined });
+        const result = buildMonthDetailData(currentKey, [entry], [], currentKey);
+
+        expect(result.commonExpense.topEntries[0].description).toBe('Sin descripción');
+      });
+
+      it('uses "Sin descripción" when description is empty string', () => {
+        const entry = buildEntry({ description: '  ' });
+        const result = buildMonthDetailData(currentKey, [entry], [], currentKey);
+
+        expect(result.commonExpense.topEntries[0].description).toBe('Sin descripción');
+      });
+
+      it('sets isFutureMonth to false for current month', () => {
+        const result = buildMonthDetailData(currentKey, [], [], currentKey);
+        expect(result.isFutureMonth).toBeFalse();
+      });
+
+      it('sets isFutureMonth to false for past months', () => {
+        const result = buildMonthDetailData('2026-01', [], [], currentKey);
+        expect(result.isFutureMonth).toBeFalse();
+      });
+
+      it('includes a monthLabel with month name and year', () => {
+        const result = buildMonthDetailData(currentKey, [], [], currentKey);
+        expect(result.monthLabel).toContain('2026');
+        // Spanish locale should produce month name containing "mar"
+        expect(result.monthLabel.toLowerCase()).toContain('mar');
+      });
+    });
+
+    describe('future months', () => {
+      it('sets isFutureMonth to true', () => {
+        const result = buildMonthDetailData('2026-04', [], [], currentKey);
+        expect(result.isFutureMonth).toBeTrue();
+      });
+
+      it('returns empty income, common, and recurring sections', () => {
+        const result = buildMonthDetailData('2026-04', [], [], currentKey);
+
+        expect(result.income.total).toBe(0);
+        expect(result.income.entries.length).toBe(0);
+        expect(result.commonExpense.total).toBe(0);
+        expect(result.commonExpense.topEntries.length).toBe(0);
+        expect(result.recurringExpense.total).toBe(0);
+        expect(result.recurringExpense.entries.length).toBe(0);
+      });
+
+      it('projects installment entries with correct labels', () => {
+        // Anchor: Jan 2026, index 2, total 6 → Apr is index 3
+        const entry = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6, 50000);
+        entry.description = 'TV Cuotas';
+        const result = buildMonthDetailData('2026-04', [], [entry], currentKey);
+
+        expect(result.installmentExpense.total).toBe(50000);
+        expect(result.installmentExpense.entries.length).toBe(1);
+        expect(result.installmentExpense.entries[0].description).toBe('TV Cuotas');
+        expect(result.installmentExpense.entries[0].installmentLabel).toBe('Cuota 4 de 6');
+        expect(result.installmentExpense.entries[0].isProjected).toBeTrue();
+      });
+
+      it('projects multiple installment series into the same month', () => {
+        const e1 = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6, 50000, 'rec-1');
+        e1.description = 'Series A';
+        const e2 = buildInstallmentEntry('2026-02-15T00:00:00.000Z', 1, 5, 30000, 'rec-2');
+        e2.description = 'Series B';
+        const result = buildMonthDetailData('2026-04', [], [e1, e2], currentKey);
+
+        expect(result.installmentExpense.entries.length).toBe(2);
+        expect(result.installmentExpense.total).toBe(80000);
+      });
+    });
+
+    describe('edge cases', () => {
+      it('returns all zeros for a month with no entries', () => {
+        const result = buildMonthDetailData(currentKey, [], [], currentKey);
+
+        expect(result.income.total).toBe(0);
+        expect(result.commonExpense.total).toBe(0);
+        expect(result.recurringExpense.total).toBe(0);
+        expect(result.installmentExpense.total).toBe(0);
+      });
+
+      it('handles month with only income entries', () => {
+        const entry = buildEntry({ type: EntryType.INCOME, amount: 100000 });
+        const result = buildMonthDetailData(currentKey, [entry], [], currentKey);
+
+        expect(result.income.total).toBe(100000);
+        expect(result.commonExpense.total).toBe(0);
+        expect(result.recurringExpense.total).toBe(0);
+        expect(result.installmentExpense.total).toBe(0);
+      });
+    });
+  });
+
+  describe('projectFutureInstallmentEntries', () => {
+    it('returns entries for installments falling in target month', () => {
+      // Anchor: Jan 2026, index 2, total 6 → May is index 4
+      const entry = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6, 50000);
+      entry.description = 'Laptop';
+      const result = projectFutureInstallmentEntries([entry], '2026-05');
+
+      expect(result.length).toBe(1);
+      expect(result[0].description).toBe('Laptop');
+      expect(result[0].amount).toBe(50000);
+      expect(result[0].installmentLabel).toBe('Cuota 5 de 6');
+      expect(result[0].isProjected).toBeTrue();
+    });
+
+    it('returns empty array when no installments project into target month', () => {
+      // Anchor: Jan 2026, total 3 → ends Mar 2026, nothing in Jul
+      const entry = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 3);
+      const result = projectFutureInstallmentEntries([entry], '2026-07');
+
+      expect(result.length).toBe(0);
+    });
+
+    it('groups by recurrenceId to avoid duplicates', () => {
+      const e1 = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 1, 6, 50000, 'rec-1');
+      const e2 = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6, 50000, 'rec-1');
+      // Both belong to rec-1; only the latest (idx 2) should be used
+      const result = projectFutureInstallmentEntries([e1, e2], '2026-04');
+
+      expect(result.length).toBe(1);
+      expect(result[0].installmentLabel).toBe('Cuota 4 de 6');
+    });
+
+    it('returns entries from multiple series', () => {
+      const e1 = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6, 50000, 'rec-1');
+      e1.description = 'Series A';
+      const e2 = buildInstallmentEntry('2026-02-15T00:00:00.000Z', 1, 8, 30000, 'rec-2');
+      e2.description = 'Series B';
+      const result = projectFutureInstallmentEntries([e1, e2], '2026-05');
+
+      expect(result.length).toBe(2);
+    });
+
+    it('ignores non-installment entries', () => {
+      const income = buildEntry({ type: EntryType.INCOME });
+      const common = buildEntry({ id: 'e2' });
+      const recurring = buildRecurringEntry('2026-03-15T12:00:00.000Z');
+      const result = projectFutureInstallmentEntries([income, common, recurring], '2026-04');
+
+      expect(result.length).toBe(0);
+    });
+
+    it('uses "Sin descripción" when entry has no description', () => {
+      const entry = buildInstallmentEntry('2026-01-15T00:00:00.000Z', 2, 6);
+      entry.description = undefined;
+      const result = projectFutureInstallmentEntries([entry], '2026-04');
+
+      expect(result[0].description).toBe('Sin descripción');
     });
   });
 });

@@ -1,4 +1,5 @@
 import { EntryData, EntryType } from '../models/entry-data.model';
+import { resolveInstallmentDisplayDetailsFromEntry } from './recurrence-installment-display.util';
 
 /**
  * Aggregated amounts for a single month, split by entry category.
@@ -277,25 +278,283 @@ function projectFutureInstallments(
 
   // Project remaining occurrences for each group
   for (const [, entry] of groups) {
+    projectEntryOccurrences(entry, months, currentKey);
+  }
+}
+
+/**
+ * Projects remaining occurrences of a single installment entry into month slots.
+ *
+ * @param entry The installment entry to project.
+ * @param months The month slots to update.
+ * @param currentKey The current month key (projections are only for months after this).
+ */
+function projectEntryOccurrences(
+  entry: EntryData,
+  months: TrendMonthData[],
+  currentKey: string,
+): void {
+  const recurrence = entry.recurrence!;
+  const total = (recurrence.termination as { mode: 'occurrences'; total: number }).total;
+  const anchorDate = new Date(recurrence.anchorDate);
+  if (Number.isNaN(anchorDate.getTime())) return;
+
+  const nextIndex = recurrence.occurrenceIndex + 1;
+
+  for (let i = nextIndex; i < total; i++) {
+    const projectedDate = new Date(anchorDate);
+    projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i);
+    const projectedKey = buildMonthKey(projectedDate);
+
+    // Only project into future months (after current)
+    if (projectedKey <= currentKey) continue;
+
+    const slot = months.find((m) => m.monthKey === projectedKey);
+    if (slot) {
+      slot.installmentExpense += entry.amount;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Month detail panel data
+// ---------------------------------------------------------------------------
+
+/**
+ * A single item to display in the month detail panel.
+ */
+export interface MonthDetailEntry {
+  description: string;
+  amount: number;
+  installmentLabel?: string;
+  isProjected: boolean;
+}
+
+/**
+ * Complete detail data for a selected month.
+ */
+export interface MonthDetailData {
+  monthKey: string;
+  monthLabel: string;
+  isFutureMonth: boolean;
+  income: { total: number; entries: MonthDetailEntry[] };
+  commonExpense: { total: number; topEntries: MonthDetailEntry[]; remainingCount: number };
+  recurringExpense: { total: number; entries: MonthDetailEntry[] };
+  installmentExpense: { total: number; entries: MonthDetailEntry[] };
+}
+
+/**
+ * Result of categorizing a list of entries into four buckets.
+ */
+interface CategorizedEntries {
+  income: EntryData[];
+  common: EntryData[];
+  recurring: EntryData[];
+  installment: EntryData[];
+}
+
+const DETAIL_MONTH_FORMATTER = new Intl.DateTimeFormat('es-CL', {
+  timeZone: CHILE_TIMEZONE,
+  month: 'long',
+});
+
+const DETAIL_YEAR_FORMATTER = new Intl.DateTimeFormat('es-CL', {
+  timeZone: CHILE_TIMEZONE,
+  year: 'numeric',
+});
+
+/**
+ * Categorizes entries into four arrays by type and recurrence mode.
+ *
+ * @param entries Entries to classify.
+ * @returns Four arrays: income, common expense, recurring expense, installment expense.
+ */
+export function categorizeMonthEntries(entries: EntryData[]): CategorizedEntries {
+  const result: CategorizedEntries = {
+    income: [],
+    common: [],
+    recurring: [],
+    installment: [],
+  };
+
+  for (const entry of entries) {
+    if (entry.type === EntryType.INCOME) {
+      result.income.push(entry);
+      continue;
+    }
+
+    if (!entry.recurrence) {
+      result.common.push(entry);
+      continue;
+    }
+
+    if (entry.recurrence.termination.mode === 'indefinite') {
+      result.recurring.push(entry);
+      continue;
+    }
+
+    if (entry.recurrence.termination.mode === 'occurrences') {
+      result.installment.push(entry);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Builds the detail data for a selected month.
+ *
+ * @param monthKey The YYYY-MM key of the selected month.
+ * @param monthEntries Actual entries for that month (empty for future months).
+ * @param allEntries All entries (needed for future installment projection).
+ * @param currentKey The current month key to determine if the month is in the future.
+ * @returns Complete detail data for rendering the month detail panel.
+ */
+export function buildMonthDetailData(
+  monthKey: string,
+  monthEntries: EntryData[],
+  allEntries: EntryData[],
+  currentKey: string,
+): MonthDetailData {
+  const parsed = parseMonthKey(monthKey);
+  const labelDate = new Date(parsed.year, parsed.month - 1, 1);
+  const monthName = DETAIL_MONTH_FORMATTER.format(labelDate);
+  const monthLabel = `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)} ${DETAIL_YEAR_FORMATTER.format(labelDate)}`;
+  const isFutureMonth = monthKey > currentKey;
+
+  if (isFutureMonth) {
+    const projectedEntries = projectFutureInstallmentEntries(allEntries, monthKey);
+    const installmentTotal = projectedEntries.reduce((sum, e) => sum + e.amount, 0);
+
+    return {
+      monthKey,
+      monthLabel,
+      isFutureMonth: true,
+      income: { total: 0, entries: [] },
+      commonExpense: { total: 0, topEntries: [], remainingCount: 0 },
+      recurringExpense: { total: 0, entries: [] },
+      installmentExpense: { total: installmentTotal, entries: projectedEntries },
+    };
+  }
+
+  const categorized = categorizeMonthEntries(monthEntries);
+
+  const incomeEntries = toDetailEntries(categorized.income);
+  const incomeTotal = incomeEntries.reduce((sum, e) => sum + e.amount, 0);
+
+  const commonSorted = toDetailEntries(categorized.common)
+    .sort((a, b) => b.amount - a.amount);
+  const commonTotal = commonSorted.reduce((sum, e) => sum + e.amount, 0);
+  const topEntries = commonSorted.slice(0, 3);
+  const remainingCount = Math.max(0, commonSorted.length - 3);
+
+  const recurringEntries = toDetailEntries(categorized.recurring);
+  const recurringTotal = recurringEntries.reduce((sum, e) => sum + e.amount, 0);
+
+  const installmentEntries = toInstallmentDetailEntries(categorized.installment);
+  const installmentTotal = installmentEntries.reduce((sum, e) => sum + e.amount, 0);
+
+  return {
+    monthKey,
+    monthLabel,
+    isFutureMonth: false,
+    income: { total: incomeTotal, entries: incomeEntries },
+    commonExpense: { total: commonTotal, topEntries, remainingCount },
+    recurringExpense: { total: recurringTotal, entries: recurringEntries },
+    installmentExpense: { total: installmentTotal, entries: installmentEntries },
+  };
+}
+
+/**
+ * Converts raw entries into detail view models.
+ *
+ * @param entries Entries to convert.
+ * @returns Detail entry view models with isProjected false.
+ */
+function toDetailEntries(entries: EntryData[]): MonthDetailEntry[] {
+  return entries.map((entry) => ({
+    description: (entry.description ?? '').trim() || 'Sin descripción',
+    amount: entry.amount,
+    isProjected: false,
+  }));
+}
+
+/**
+ * Converts installment entries into detail view models with installment labels.
+ *
+ * @param entries Installment entries to convert.
+ * @returns Detail entry view models with installment labels.
+ */
+function toInstallmentDetailEntries(entries: EntryData[]): MonthDetailEntry[] {
+  return entries.map((entry) => {
+    const details = resolveInstallmentDisplayDetailsFromEntry(entry);
+    return {
+      description: (entry.description ?? '').trim() || 'Sin descripción',
+      amount: entry.amount,
+      installmentLabel: details?.installmentLabel,
+      isProjected: false,
+    };
+  });
+}
+
+/**
+ * Projects individual installment entries for a future month.
+ *
+ * Groups entries by recurrenceId, takes the latest occurrence per group,
+ * and computes which occurrence falls in the target month.
+ *
+ * @param allEntries All entries to scan for installment recurrences.
+ * @param targetMonthKey The YYYY-MM key of the future month.
+ * @returns Projected detail entries for the target month.
+ */
+export function projectFutureInstallmentEntries(
+  allEntries: EntryData[],
+  targetMonthKey: string,
+): MonthDetailEntry[] {
+  const groups = new Map<string, EntryData>();
+
+  for (const entry of allEntries) {
+    if (
+      entry.type !== EntryType.EXPENSE ||
+      !entry.recurrence ||
+      entry.recurrence.frequency !== 'monthly' ||
+      entry.recurrence.termination.mode !== 'occurrences'
+    ) {
+      continue;
+    }
+
+    const { recurrenceId, occurrenceIndex } = entry.recurrence;
+    const existing = groups.get(recurrenceId);
+    if (!existing || occurrenceIndex > existing.recurrence!.occurrenceIndex) {
+      groups.set(recurrenceId, entry);
+    }
+  }
+
+  const result: MonthDetailEntry[] = [];
+
+  for (const [, entry] of groups) {
     const recurrence = entry.recurrence!;
     const total = (recurrence.termination as { mode: 'occurrences'; total: number }).total;
     const anchorDate = new Date(recurrence.anchorDate);
     if (Number.isNaN(anchorDate.getTime())) continue;
 
-    const nextIndex = recurrence.occurrenceIndex + 1;
-
-    for (let i = nextIndex; i < total; i++) {
+    for (let i = 0; i < total; i++) {
       const projectedDate = new Date(anchorDate);
       projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i);
       const projectedKey = buildMonthKey(projectedDate);
 
-      // Only project into future months (after current)
-      if (projectedKey <= currentKey) continue;
-
-      const slot = months.find((m) => m.monthKey === projectedKey);
-      if (slot) {
-        slot.installmentExpense += entry.amount;
+      if (projectedKey === targetMonthKey) {
+        const installmentNumber = i + 1;
+        result.push({
+          description: (entry.description ?? '').trim() || 'Sin descripción',
+          amount: entry.amount,
+          installmentLabel: `Cuota ${installmentNumber} de ${total}`,
+          isProjected: true,
+        });
+        break;
       }
     }
   }
+
+  return result;
 }
