@@ -42,10 +42,12 @@
     <div class="trends-chart-scroll">
       <div class="trends-chart">
         @for (month of data.months; track month.monthKey) {
-          <div class="trends-month"
-               [class.trends-month--current]="month.isCurrent"
-               [class.trends-month--selected]="selectedMonthKey() === month.monthKey"
-               (click)="selectMonth(month.monthKey)">
+          <button type="button"
+                  class="trends-month"
+                  [class.trends-month--current]="month.isCurrent"
+                  [class.trends-month--selected]="selectedMonthKey() === month.monthKey"
+                  [attr.aria-pressed]="selectedMonthKey() === month.monthKey"
+                  (click)="selectMonth(month.monthKey)">
             <div class="trends-month__bars">
               <div class="trends-bar trends-bar--income"
                    [style.height.%]="barHeight(month.income, data.maxAmount)"
@@ -72,7 +74,7 @@
             <span class="trends-month__label">
               {{ monthLabel(month) }}
             </span>
-          </div>
+          </button>
         }
       </div>
     </div>

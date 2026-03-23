@@ -103,6 +103,33 @@ function compareMonths(
 }
 
 /**
+ * Resolves the last included occurrence index for an installment series.
+ *
+ * @param total Total number of occurrences configured for the series.
+ * @param excludedOccurrences Optional occurrence indexes excluded from the series.
+ * @returns The last included occurrence index, or null when none remain.
+ */
+function resolveLastIncludedOccurrenceIndex(
+  total: number,
+  excludedOccurrences?: number[],
+): number | null {
+  if (!Number.isInteger(total) || total < 1) return null;
+
+  const excludedSet = new Set(
+    (excludedOccurrences ?? []).filter((index) =>
+      Number.isInteger(index) && index >= 0 && index < total),
+  );
+
+  for (let i = total - 1; i >= 0; i--) {
+    if (!excludedSet.has(i)) {
+      return i;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Scans entries for the farthest installment end date.
  *
  * @param entries All entries to scan.
@@ -127,10 +154,14 @@ export function resolveLastInstallmentMonth(
     if (Number.isNaN(anchorDate.getTime())) continue;
 
     const total = entry.recurrence.termination.total;
-    if (!Number.isInteger(total) || total < 1) continue;
+    const lastIncludedOccurrenceIndex = resolveLastIncludedOccurrenceIndex(
+      total,
+      entry.recurrence.excludedOccurrences,
+    );
+    if (lastIncludedOccurrenceIndex === null) continue;
 
     const lastDate = new Date(anchorDate);
-    lastDate.setUTCMonth(lastDate.getUTCMonth() + total - 1);
+    lastDate.setUTCMonth(lastDate.getUTCMonth() + lastIncludedOccurrenceIndex);
 
     const lastMonthKey = buildMonthKey(lastDate);
     const parsed = parseMonthKey(lastMonthKey);

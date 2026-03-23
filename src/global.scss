@@ -69,10 +69,10 @@
 }
 
 // Remove hairline border between ion-header and content so header blends with status bar on iOS PWA
-ion-header::after {
+.ios ion-header::after {
   display: none;
 }
 
-ion-toolbar {
+.ios ion-toolbar {
   --border-width: 0;
 }

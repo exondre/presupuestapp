@@ -158,13 +158,13 @@ describe('TrendsPage', () => {
   });
 
   describe('template rendering', () => {
-    it('renders trends-month elements for each month', () => {
+    it('renders month selection buttons for each month', () => {
       entryServiceMock.entriesSignal.set([
         buildEntry({ type: EntryType.INCOME, amount: 100000 }),
       ]);
       fixture.detectChanges();
 
-      const monthEls = fixture.nativeElement.querySelectorAll('.trends-month');
+      const monthEls = fixture.nativeElement.querySelectorAll('button.trends-month');
       expect(monthEls.length).toBeGreaterThanOrEqual(3);
     });
 
@@ -178,13 +178,24 @@ describe('TrendsPage', () => {
       expect(selectedEls.length).toBe(1);
     });
 
+    it('sets aria-pressed for the selected month button', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
+      fixture.detectChanges();
+
+      const selectedEl = fixture.nativeElement.querySelector('button.trends-month--selected');
+      expect(selectedEl).toBeTruthy();
+      expect(selectedEl.getAttribute('aria-pressed')).toBe('true');
+    });
+
     it('clicking a month bar changes selection', () => {
       entryServiceMock.entriesSignal.set([
         buildEntry({ type: EntryType.INCOME, amount: 100000 }),
       ]);
       fixture.detectChanges();
 
-      const monthEls = fixture.nativeElement.querySelectorAll('.trends-month');
+      const monthEls = fixture.nativeElement.querySelectorAll('button.trends-month');
       if (monthEls.length > 1) {
         monthEls[0].click();
         fixture.detectChanges();

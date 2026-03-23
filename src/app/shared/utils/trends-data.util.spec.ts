@@ -163,6 +163,25 @@ describe('trends data util', () => {
       expect(result).toEqual({ month: 12, year: 2026 });
     });
 
+    it('ignores excluded occurrences when resolving the last month', () => {
+      const entry = buildInstallmentEntry(
+        '2026-01-15T00:00:00.000Z', 2, 6,
+      ); // total ends Jun 2026, but last occurrence is excluded
+      entry.recurrence!.excludedOccurrences = [5];
+
+      const result = resolveLastInstallmentMonth([entry]);
+      expect(result).toEqual({ month: 5, year: 2026 });
+    });
+
+    it('returns null when all occurrences are excluded', () => {
+      const entry = buildInstallmentEntry(
+        '2026-01-15T00:00:00.000Z', 0, 3,
+      );
+      entry.recurrence!.excludedOccurrences = [0, 1, 2];
+
+      expect(resolveLastInstallmentMonth([entry])).toBeNull();
+    });
+
     it('returns null for entries with invalid anchor dates', () => {
       const entry = buildEntry({
         id: 'e-invalid',
@@ -223,6 +242,34 @@ describe('trends data util', () => {
         // Jan, Feb, Mar, Apr = 4 months
         expect(result.months.length).toBe(4);
         expect(result.months[3].monthKey).toBe('2026-04');
+      });
+
+      it('uses the last included occurrence when trailing occurrences are excluded', () => {
+        const entry = buildInstallmentEntry(
+          '2026-01-15T00:00:00.000Z', 2, 6,
+        );
+        entry.recurrence!.excludedOccurrences = [5];
+
+        const entries = [entry];
+        const map = buildMonthMap(now, entries);
+        const result = buildTrendsData(map, entries, now);
+
+        expect(result.months.length).toBe(5);
+        expect(result.months[4].monthKey).toBe('2026-05');
+      });
+
+      it('does not extend chart range when all remaining future occurrences are excluded', () => {
+        const entry = buildInstallmentEntry(
+          '2026-01-15T00:00:00.000Z', 2, 6,
+        );
+        entry.recurrence!.excludedOccurrences = [3, 4, 5];
+
+        const entries = [entry];
+        const map = buildMonthMap(now, entries);
+        const result = buildTrendsData(map, entries, now);
+
+        expect(result.months.length).toBe(3);
+        expect(result.months[2].monthKey).toBe('2026-03');
       });
 
       it('shows only 3 months when installment ends in current month', () => {
