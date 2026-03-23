@@ -195,6 +195,28 @@
           button
           detail="false"
           class="settings-item"
+          (click)="openXlsxFileSelector()"
+        >
+          <ion-icon
+            aria-hidden="true"
+            class="settings-item__icon"
+            name="document-outline"
+            slot="start"
+          ></ion-icon>
+          <ion-label>
+            <h2>Importar desde Excel</h2>
+            <p>
+              Carga un archivo Excel (.xlsx, .xls) para importar transacciones.
+            </p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+
+      <ion-list lines="none" class="settings-list">      
+        <ion-item
+          button
+          detail="false"
+          class="settings-item"
           (click)="handleImport()"
         >
           <ion-icon
@@ -267,7 +289,7 @@
     </div>
 
     <ion-text color="medium" class="settings-version">
-      <p>Versión {{ appVersion }}</p>
+      <p>Versión {{ appVersion }} <br/> Desarrollado en 🇨🇱</p>
     </ion-text>
   </div>
 
@@ -278,4 +300,19 @@
     type="file"
     (change)="handleFileSelected($event)"
   />
+
+  <input
+    #xlsxFileInput
+    accept=".xlsx,.xls"
+    class="settings-file-input"
+    type="file"
+    (change)="handleXlsxFileSelected($event)"
+  />
+
+  <app-import-review-modal
+    [isOpen]="isImportReviewOpen()"
+    [mergeResult]="currentMergeResult()"
+    (importConfirmed)="handleImportConfirmed($event)"
+    (dismissed)="handleImportReviewDismissed()"
+  ></app-import-review-modal>
 </ion-content>

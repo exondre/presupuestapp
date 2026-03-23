@@ -3,8 +3,8 @@ ion-title {
 }
 
 .balance-content {
-  // --background: var(--ion-color-light);
-  background: var(--ion-item-background, var(--ion-background-color, #fff));
+  --background: var(--ion-color-light);
+  // background: var(--ion-item-background, var(--ion-background-color, #fff));
 }
 
 .balance-content::part(scroll) {
@@ -20,7 +20,7 @@ ion-title {
 
 .balance-summary-card {
   margin: 1rem 1rem;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
 
   &__header {
     display: flex;
@@ -83,7 +83,8 @@ ion-title {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0rem 1rem 3rem;
+  // padding: 0rem 1rem 3rem;
+  padding: 0rem 0rem 3rem;
 }
 
 .balance-day-group {
@@ -92,9 +93,9 @@ ion-title {
 }
 
 .balance-divider {
-  // background: var(--ion-item-background, var(--ion-background-color, #fff));
-  // background: var(--ion-color-light);
-  background: transparent;
+  background: rgba(var(--ion-color-light-rgb), 0.8);
+  -webkit-backdrop-filter: blur(5px) saturate(180%);
+  backdrop-filter: blur(5px) saturate(180%);
   padding: 0 0 0rem;
 
   &__label {
@@ -103,43 +104,20 @@ ion-title {
     letter-spacing: 0.03em;
     text-transform: lowercase;
     color: var(--ion-color-medium);
+    padding: 0rem 1rem;
   }
 }
 
 .balance-add-entry {
-  --background: red;
-  --background-activated-opacity: 0.12;
-
   ion-fab-button {
-    --background: transparent;
-    --border-color: var(--ion-color-primary);
-    --border-width: 1px;
-    --border-style: solid;
-
-    // --background-activated: var(--ion-color-primary);
+    --background: var(--ion-color-primary);
+    --background-activated: var(--ion-color-primary-shade);
+    --box-shadow: 0 4px 12px rgba(255, 115, 32, 0.35);
   }
 
   ion-icon {
-    color: var(--ion-color-primary);
+    color: #ffffff;
     font-size: 1.5rem;
   }
 }
 
-
-
-.empty-state {
-  margin-top: 4rem;
-  text-align: center;
-  color: var(--ion-color-medium);
-
-  &__title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-
-  &__subtitle {
-    font-size: 0.9375rem;
-    margin: 0;
-  }
-}

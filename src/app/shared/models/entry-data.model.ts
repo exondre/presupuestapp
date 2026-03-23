@@ -19,6 +19,7 @@ export interface EntryData {
   description?: string;
   updatedAt?: string;
   recurrence?: EntryRecurrence;
+  idempotencyInfo?: IdempotencyInfo[];
 }
 
 /**
@@ -71,4 +72,9 @@ export interface EntryRecurrence extends EntryRecurrenceCreation {
   anchorDate: string;
   occurrenceIndex: number;
   excludedOccurrences?: number[];
+}
+
+export interface IdempotencyInfo {
+  idempotencyKey: string;
+  idempotencyVersion: string;
 }

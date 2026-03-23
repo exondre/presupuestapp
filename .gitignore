@@ -106,3 +106,6 @@ Thumbs.db
 
 # Certs
 *.pem
+
+# IA instructions
+*-instructions.md

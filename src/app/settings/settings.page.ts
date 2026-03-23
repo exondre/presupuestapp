@@ -32,6 +32,7 @@ import {
   closeCircleOutline,
   cloudDownloadOutline,
   cloudUploadOutline,
+  documentOutline,
   logoGoogle,
   syncOutline,
   warningOutline,
@@ -41,6 +42,14 @@ import { EntryService } from '../shared/services/entry.service';
 import { FirebaseAuthService, AuthStatus } from '../auth/firebase-auth.service';
 import { environment } from '../../environments/environment';
 import { EntrySyncService } from '../shared/services/entry-sync.service';
+import {
+  ExternalEntryImportService,
+  MergeResult,
+} from '../shared/services/external-entry-import.service';
+import {
+  ImportConfirmation,
+  ImportReviewModalComponent,
+} from '../shared/components/import-review-modal/import-review-modal.component';
 
 /**
  * Provides application settings such as data import and export utilities.
@@ -65,6 +74,7 @@ import { EntrySyncService } from '../shared/services/entry-sync.service';
     IonButton,
     IonSpinner,
     IonText,
+    ImportReviewModalComponent,
   ],
 })
 export class SettingsPage {
@@ -74,6 +84,9 @@ export class SettingsPage {
 
   @ViewChild('fileInput')
   private readonly fileInput?: ElementRef<HTMLInputElement>;
+
+  @ViewChild('xlsxFileInput')
+  private readonly xlsxFileInput?: ElementRef<HTMLInputElement>;
 
   private readonly alertController = inject(AlertController);
 
@@ -87,6 +100,8 @@ export class SettingsPage {
 
   private readonly expensesSyncService = inject(EntrySyncService);
 
+  private readonly externalEntryImportService = inject(ExternalEntryImportService);
+
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly shouldShowAuthDebugInfo = environment.features.authDebugInfo;
@@ -99,10 +114,18 @@ export class SettingsPage {
   protected readonly isSigningOut = computed(() => this.authStatus() === 'signing-out');
   protected isSyncing = false;
 
+  protected readonly isImportReviewOpen = signal(false);
+  protected readonly currentMergeResult = signal<MergeResult>({
+    exactDuplicates: [],
+    potentialDuplicates: [],
+    readyToImport: [],
+  });
+
   constructor() {
     addIcons({
       'cloud-upload-outline': cloudUploadOutline,
       'cloud-download-outline': cloudDownloadOutline,
+      'document-outline': documentOutline,
       'logo-google': logoGoogle,
       'warning-outline': warningOutline,
       'sync-outline': syncOutline,
@@ -285,6 +308,106 @@ export class SettingsPage {
       await this.presentError(message, error);
     } finally {
       this.resetFileInput();
+    }
+  }
+
+  /**
+   * Opens the hidden file selector so the user can pick an Excel file.
+   */
+  protected openXlsxFileSelector(): void {
+    this.xlsxFileInput?.nativeElement.click();
+  }
+
+  /**
+   * Processes the Excel file chosen by the user for the import operation.
+   * Currently logs the parsed data to the console without persisting it.
+   *
+   * @param event File input change event.
+   */
+  protected async handleXlsxFileSelected(event: Event): Promise<void> {
+    try {
+      const input = event.target as HTMLInputElement | null;
+      const file = input?.files?.[0] ?? null;
+
+      if (!file) {
+        await this.presentError('No se seleccionó ningún archivo.', null);
+        return;
+      }
+
+      const result = await this.withLoader('Procesando…', () =>
+        this.externalEntryImportService.importFromExcel(file, 'falabella-cmr'),
+      );
+
+      console.debug('Data import result:', result);
+
+      const existingEntries = this.entryService.getEntriesSnapshot();
+      const mergeResult = this.externalEntryImportService.mergeWithExistingEntries(
+        result.entries,
+        existingEntries,
+      );
+
+      this.currentMergeResult.set(mergeResult);
+      this.isImportReviewOpen.set(true);
+    } catch (error) {
+      await this.presentError(
+        'No se pudo procesar el archivo Excel. Verifica que el formato sea correcto.',
+        error,
+      );
+    } finally {
+      this.resetXlsxFileInput();
+    }
+  }
+
+  /**
+   * Handles confirmed import from the review modal by persisting the approved entries.
+   *
+   * @param entries The entries approved by the user for import.
+   */
+  protected async handleImportConfirmed(confirmation: ImportConfirmation): Promise<void> {
+    this.isImportReviewOpen.set(false);
+    try {
+      await this.withLoader('Importando transacciones…', async () => {
+        const creations = confirmation.entriesToImport.map((e) =>
+          this.externalEntryImportService.toEntryCreation(e),
+        );
+        this.entryService.addEntries(creations);
+
+        for (const dup of confirmation.confirmedDuplicates) {
+          this.entryService.appendIdempotencyInfo(
+            dup.matchedEntry.id,
+            dup.importedEntry.idempotencyInfo,
+          );
+
+          if (dup.importedEntry.recurrence && !dup.matchedEntry.recurrence) {
+            this.entryService.convertToRecurring(
+              dup.matchedEntry.id,
+              dup.importedEntry.recurrence,
+            );
+          }
+        }
+      });
+      await this.presentToast(`${confirmation.entriesToImport.length} transacciones importadas correctamente.`);
+    } catch (error) {
+      await this.presentError(
+        'No se pudieron importar las transacciones. Intenta nuevamente.',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Handles the review modal dismissal without importing.
+   */
+  protected handleImportReviewDismissed(): void {
+    this.isImportReviewOpen.set(false);
+  }
+
+  /**
+   * Resets the hidden XLSX file input value to allow selecting the same file again.
+   */
+  private resetXlsxFileInput(): void {
+    if (this.xlsxFileInput) {
+      this.xlsxFileInput.nativeElement.value = '';
     }
   }
 

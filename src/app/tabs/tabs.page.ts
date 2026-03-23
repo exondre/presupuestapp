@@ -1,6 +1,7 @@
 import { Component, EnvironmentInjector, inject } from '@angular/core';
 import {
   IonIcon,
+  IonLabel,
   IonTabBar,
   IonTabButton,
   IonTabs,
@@ -11,17 +12,19 @@ import {
   cogOutline,
   home,
   homeOutline,
-  statsChart,
-  statsChartOutline,
+  trendingUp,
+  trendingUpOutline,
   time,
   timeOutline,
+  wallet,
+  walletOutline,
 } from 'ionicons/icons';
 import { MetaThemeColorService } from '../shared/services/meta-theme-color.service';
 @Component({
   selector: 'app-tabs',
   templateUrl: 'tabs.page.html',
   styleUrls: ['tabs.page.scss'],
-  imports: [IonTabs, IonTabBar, IonTabButton, IonIcon],
+  imports: [IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel],
 })
 export class TabsPage {
   public environmentInjector = inject(EnvironmentInjector);
@@ -31,6 +34,7 @@ export class TabsPage {
   private readonly themeColorByTab: Record<string, string> = {
     home: '#ffffff',
     balance: '#f7f7f7',
+    trends: '#f7f7f7',
     history: '#f7f7f7',
     settings: '#f7f7f7',
   };
@@ -46,10 +50,12 @@ export class TabsPage {
   constructor() {
     addIcons({
       homeOutline,
-      statsChartOutline,
+      walletOutline,
+      trendingUpOutline,
       cogOutline,
       home,
-      statsChart,
+      wallet,
+      trendingUp,
       cog,
       time,
       timeOutline,

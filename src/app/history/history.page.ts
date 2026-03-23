@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   IonContent,
   IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
   IonList,
@@ -11,6 +12,8 @@ import {
   IonToolbar,
   NavController,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { timeOutline } from 'ionicons/icons';
 import { MonthSummaryItem } from '../shared/models/month-summary-item.model';
 import { EntryService } from '../shared/services/entry.service';
 import { UtilsService } from '../shared/services/utils.service';
@@ -30,6 +33,7 @@ import { UtilsService } from '../shared/services/utils.service';
     IonList,
     IonItem,
     IonLabel,
+    IonIcon,
   ],
 })
 export class HistoryPage {
@@ -40,6 +44,8 @@ export class HistoryPage {
   monthsSummaryListItems: MonthSummaryListItem[] = [];
 
   constructor() {
+    addIcons({ 'time-outline': timeOutline });
+
     effect(() => {
       this.monthsSummary = this.entryService.monthsHistory();
       this.monthsSummaryListItems = this.monthsSummary.map((item) => ({

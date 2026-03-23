@@ -1,0 +1,300 @@
+ion-toolbar {
+  --background: #f7f7f7;
+}
+
+.trends-content {
+  --background: #f7f7f7;
+}
+
+.trends-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 0.5rem;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  &__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+
+    &--income {
+      background: var(--ion-color-success);
+    }
+
+    &--common {
+      background: var(--ion-color-danger);
+    }
+
+    &--recurring {
+      background: var(--ion-color-expense);
+    }
+
+    &--installment {
+      background: var(--ion-color-tertiary);
+    }
+
+    &--total {
+      background: var(--ion-color-dark);
+    }
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+  }
+}
+
+.trends-chart-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.trends-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 240px;
+  padding-bottom: 2rem;
+  position: relative;
+}
+
+.trends-month {
+  flex: 1 0 calc((100vw - 2.5rem - 40px) / 4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  height: 100%;
+  cursor: pointer;
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--ion-color-primary);
+    outline-offset: 3px;
+    border-radius: var(--radius-md);
+  }
+
+  &--current {
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px -4px -2rem;
+      background: rgba(255, 115, 32, 0.07);
+      border-radius: var(--radius-md);
+      z-index: 0;
+    }
+
+    .trends-month__label {
+      font-weight: 700;
+      color: var(--ion-color-primary);
+    }
+  }
+
+  &--selected {
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px -4px -2rem;
+      background: rgba(114, 32, 255, 0.08);
+      border: 1.5px solid rgba(114, 32, 255, 0.18);
+      border-radius: var(--radius-md);
+      z-index: 0;
+    }
+
+    .trends-month__label {
+      font-weight: 700;
+      color: var(--ion-color-tertiary);
+    }
+  }
+
+  &__bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    flex: 1;
+    width: 100%;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__label {
+    margin-top: 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+    text-transform: capitalize;
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+  }
+}
+
+.trends-bar {
+  width: 11px;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height 0.3s ease;
+
+  &--income {
+    background: var(--ion-color-success);
+  }
+
+  &--common {
+    background: var(--ion-color-danger);
+  }
+
+  &--recurring {
+    background: var(--ion-color-expense);
+  }
+
+  &--installment {
+    background: var(--ion-color-tertiary);
+  }
+
+  &--total {
+    background: var(--ion-color-dark);
+  }
+}
+
+.trends-detail {
+  padding: 0 1.25rem 1.5rem;
+  animation: fadeSlideIn 0.25s ease-out;
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem;
+  }
+
+  &__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ion-color-dark);
+    margin: 0;
+  }
+
+  &__projected-badge {
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 0.15rem 0.45rem;
+    background: rgba(114, 32, 255, 0.1);
+    color: var(--ion-color-tertiary);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  &__section {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: var(--ion-color-light);
+    border-radius: var(--radius-md);
+  }
+
+  &__section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+
+    &--income {
+      background: var(--ion-color-success);
+    }
+
+    &--common {
+      background: var(--ion-color-danger);
+    }
+
+    &--recurring {
+      background: var(--ion-color-expense);
+    }
+
+    &--installment {
+      background: var(--ion-color-tertiary);
+    }
+  }
+
+  &__section-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+    flex: 1;
+  }
+
+  &__section-amount {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ion-color-dark);
+  }
+
+  &__entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0 0.4rem 1.25rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+
+    &:first-of-type {
+      margin-top: 0.5rem;
+    }
+
+    &--more {
+      opacity: 0.7;
+      font-style: italic;
+    }
+  }
+
+  &__entry-desc {
+    flex: 1;
+    font-size: 0.8rem;
+    color: var(--ion-text-color);
+    text-transform: capitalize;
+  }
+
+  &__entry-amount {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ion-color-dark);
+  }
+
+  &__entry-installment {
+    font-size: 0.7rem;
+    color: var(--ion-color-medium);
+  }
+
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

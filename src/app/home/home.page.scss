@@ -1,47 +1,169 @@
 .home-content {
-  --padding-top: 10rem;
-  --padding-start: 24px;
-  --padding-end: 24px;
-  --padding-bottom: 32px;
+  --padding-start: 20px;
+  --padding-end: 20px;
+  --padding-top: calc(env(safe-area-inset-top) + 2rem);
+  --padding-bottom: 0;
+}
 
+.home-header {
+  margin-bottom: 1.5rem;
+
+  &__greeting {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--ion-color-dark);
+  }
+
+  &__month {
+    margin: 0.25rem 0 0;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+    text-transform: capitalize;
+  }
+}
+
+.home-summary {
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 2rem;
-  overflow-y: hidden;
+  gap: 10px;
+  margin-bottom: 1.5rem;
 }
 
-.home-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  align-items: center;
-  text-align: center;
-  width: 100%;
-}
-
-.home-logo {
-  width: 200px;
-  max-width: 100%;
-  height: auto;
-}
-
-.app-name {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--ion-text-color, #1f1f1f);
-}
-
-.home-buttons {
-  width: 100%;
-  margin-top: 2rem;
-  max-width: 330px;
-  display: flex;
-  margin-inline: auto;
-}
-
-.home-buttons ion-button {
+.home-summary-card {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--ion-color-light);
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+  }
+
+  &__amount {
+    font-size: clamp(0.75rem, 3.5vw, 1rem);
+    font-weight: 700;
+    color: var(--ion-color-dark);
+  }
+
+  &--income {
+    .home-summary-card__amount {
+      color: var(--ion-color-success);
+    }
+  }
+
+  &--expense {
+    .home-summary-card__amount {
+      color: var(--ion-color-danger);
+    }
+  }
+
+  &--balance {
+    .home-summary-card__amount {
+      color: var(--ion-color-primary);
+    }
+  }
+}
+
+.home-actions {
+  margin-bottom: 2rem;
+}
+
+.home-recent {
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--ion-color-dark);
+  }
+
+  &__list {
+    background: transparent;
+  }
+
+  &__item {
+    --background: transparent;
+    --padding-start: 0;
+    --inner-padding-end: 0;
+    --min-height: 44px;
+  }
+
+  &__indicator {
+    width: 4px;
+    height: 28px;
+    border-radius: 2px;
+    margin-right: 12px;
+    flex-shrink: 0;
+
+    &--income {
+      background: var(--ion-color-success);
+    }
+
+    &--expense {
+      background: var(--ion-color-danger);
+    }
+  }
+
+  &__description {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--ion-color-dark);
+    text-transform: capitalize;
+  }
+
+  &__meta {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    color: var(--ion-color-medium);
+    line-height: 1.35;
+    text-transform: none;
+  }
+
+  &__meta-date,
+  &__meta-installment,
+  &__meta-recurring {
+    white-space: nowrap;
+  }
+
+  &__meta-installment {
+    color: var(--ion-color-medium-shade);
+  }
+
+  &__meta-recurring {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--ion-color-medium);
+
+    ion-icon {
+      font-size: 0.78rem;
+    }
+  }
+
+  &__amount {
+    font-size: 0.95rem;
+    font-weight: 600;
+
+    &--income {
+      color: var(--ion-color-success);
+    }
+
+    &--expense {
+      color: var(--ion-color-danger);
+    }
+  }
 }

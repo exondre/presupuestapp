@@ -1,5 +1,5 @@
 ion-modal.new-entry-modal {
-  --border-radius: 28px 28px 0 0;
+  --border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   --max-width: 480px;
 }
 
@@ -11,7 +11,7 @@ ion-modal.new-entry-modal {
 }
 
 .modal-content ion-list {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: visible;
 }
 
@@ -40,35 +40,53 @@ ion-modal.new-entry-modal {
 }
 
 .recurrence-hint {
-  margin-top: 0.2rem;
+  margin-top: 0.35rem;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
+  gap: 0.35rem;
+  padding-inline: 16px;
+  font-size: 0.82rem;
 
   p {
     margin: 0;
     line-height: 1.4;
-
-    .spinner-text {
-      color: var(--ion-color-primary);
-      display: inline-block;
-      transition: opacity 0.3s;
-      will-change: opacity;
-      animation: flip 0.6s ease;
-      transform-origin: center;
-    }
-
-    @keyframes flip {
-      0% { transform: rotateX(90deg); opacity: 0; }
-      50% { transform: rotateX(0deg); opacity: 1; }
-      100% { transform: rotateX(0deg); opacity: 1; }
-    }
   }
 
   &__icon {
-    font-size: 1.1rem;
-    // margin-top: 0.2rem;
+    font-size: 1rem;
+  }
+
+  &__value {
+    color: var(--ion-color-primary);
+    font-weight: 600;
+  }
+}
+
+.recurrence-summary {
+  padding: 0 16px;
+  margin-top: 0.35rem;
+  display: grid;
+  row-gap: 0.1rem;
+
+  &__installment {
+    margin: 0;
+    color: var(--ion-color-dark);
+    font-size: 0.92rem;
+    line-height: 1.35;
+    font-weight: 600;
+  }
+
+  &__last {
+    margin: 0;
+    color: var(--ion-color-medium);
+    font-size: 0.8rem;
+    line-height: 1.4;
+
+    span {
+      color: var(--ion-color-primary);
+      font-weight: 600;
+      text-transform: lowercase;
+    }
   }
 }

@@ -62,7 +62,15 @@
                   min="1"
                 ></ion-input>
               </ion-item>
-              @if (recurrenceEndHint) {
+              @if (recurrenceInstallmentLabel && recurrenceEndHint) {
+                <div class="recurrence-summary" role="status" aria-live="polite">
+                  <p class="recurrence-summary__installment">{{ recurrenceInstallmentLabel }}</p>
+                  <p class="recurrence-summary__last">
+                    Última cuota:
+                    <span>{{ recurrenceEndHint }}</span>
+                  </p>
+                </div>
+              } @else if (recurrenceEndHint) {
                 <ion-text color="medium" class="recurrence-hint">
                   <ion-icon
                     aria-hidden="true"
@@ -71,7 +79,7 @@
                   ></ion-icon>
                   <p>
                     Se repetirá por última vez en
-                    <span class="spinner-text">{{ recurrenceEndHint }}</span>
+                    <span class="recurrence-hint__value">{{ recurrenceEndHint }}</span>
                   </p>
                 </ion-text>
               }

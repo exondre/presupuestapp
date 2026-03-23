@@ -6,6 +6,7 @@
   --background: transparent;
   --padding-start: 0;
   --inner-padding-end: 0;
+  padding: 0rem 1rem;
 
   &__amount {
     display: block;
@@ -20,9 +21,27 @@
     font-size: 0.875rem;
     text-transform: capitalize;
     color: var(--ion-color-medium);
+    line-height: 1.35;
 
     &::first-letter {
       text-transform: uppercase;
+    }
+
+    .balance-item__description-text {
+      color: inherit;
+    }
+
+    .balance-item__installment {
+      color: var(--ion-color-medium-shade);
+      font-weight: 500;
+      text-transform: none;
+    }
+
+    .balance-item__recurring {
+      font-size: 0.75rem;
+      color: var(--ion-color-medium);
+      vertical-align: middle;
+      margin-left: 0.15rem;
     }
 
     .balance-item__time {
@@ -30,6 +49,7 @@
       font-size: 0.675rem;
       font-style: italic;
       text-transform: none;
+      white-space: nowrap;
     }
   }
 }
@@ -44,7 +64,7 @@ ion-icon {
   font-size: 24px;
 
   &.expense {
-    color: var(--ion-text-color-step-400);
+    color: var(--ion-color-expense);
     transform: rotate(45deg);
   }
 

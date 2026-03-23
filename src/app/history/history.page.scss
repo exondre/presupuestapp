@@ -1,3 +1,7 @@
+ion-toolbar {
+  --background: var(--ion-color-light);
+}
+
 .history-content {
   --background: var(--ion-color-light);
 }
@@ -19,7 +23,7 @@
 }
 
 .history-list {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--ion-background-color, #fff);
   box-shadow:
     0 12px 24px rgba(16, 24, 40, 0.08),
@@ -32,7 +36,7 @@
   --inner-padding-start: 1rem;
   --padding-top: 0.75rem;
   --padding-bottom: 0.75rem;
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
 
   & + & {
@@ -42,45 +46,61 @@
   ion-label {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.25rem;
     margin: 0;
 
     h2 {
       margin: 0;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       font-weight: 600;
       text-transform: capitalize;
-      color: var(--ion-color-primary);
-    }
-
-    p {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--ion-color-medium);
-      line-height: 1.4;
-    }
-
-    span {
-      &.income {
-        color: var(--ion-color-success);
-      }
-
-      &.expense {
-        color: var(--ion-color-danger);
-      }
-
-      &.balance {
-        color: var(--ion-color-primary);
-      }
+      color: var(--ion-color-dark);
     }
   }
 
-  &__icon {
-    font-size: 1.6rem;
+  &__figures {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    margin: 0;
+
+    .income {
+      color: var(--ion-color-success);
+      font-weight: 500;
+    }
+
+    .expense {
+      color: var(--ion-color-danger);
+      font-weight: 500;
+    }
+
+    .separator {
+      color: var(--ion-color-medium);
+      opacity: 0.5;
+    }
+  }
+
+  &__balance {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.1rem;
+    flex-shrink: 0;
+  }
+
+  &__balance-amount {
+    font-size: 1rem;
+    font-weight: 700;
     color: var(--ion-color-primary);
-    margin-inline-end: 0.75rem;
-    align-self: flex-start;
-    margin-top: 0.15rem;
+  }
+
+  &__balance-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   &:hover {
@@ -102,24 +122,5 @@
   &__icon {
     font-size: 1.1rem;
     margin-top: 0.2rem;
-  }
-}
-
-.empty-state {
-  margin-top: 4rem;
-  padding-left: .5rem;
-  padding-right: .5rem;
-  text-align: center;
-  color: var(--ion-color-medium);
-
-  &__title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-
-  &__subtitle {
-    font-size: 0.9375rem;
-    margin: 0;
   }
 }
