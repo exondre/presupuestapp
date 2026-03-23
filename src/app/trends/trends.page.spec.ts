@@ -1,8 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { provideIonicAngular } from '@ionic/angular/standalone';
+
 import { TrendsPage } from './trends.page';
 import { buildMonthKey } from '../shared/utils/trends-data.util';
 import { EntryService } from '../shared/services/entry.service';
+import { UtilsService } from '../shared/services/utils.service';
 import { EntryData, EntryType } from '../shared/models/entry-data.model';
+
+class EntryServiceMock {
+  readonly entriesSignal = signal<EntryData[]>([]);
+  readonly filterEntriesByMonth = jasmine
+    .createSpy('filterEntriesByMonth')
+    .and.callFake((_referenceDate: Date = new Date()): EntryData[] => this.entriesSignal());
+}
+
+class UtilsServiceMock {
+  formatAmount(amount: number): string {
+    return `$${amount}`;
+  }
+}
+
+const FIXED_NOW = new Date('2026-03-22T15:00:00.000Z');
 
 /**
  * Builds a basic entry fixture for testing.
@@ -23,11 +42,30 @@ function buildEntry(overrides: Partial<EntryData> = {}): EntryData {
 describe('TrendsPage', () => {
   let component: TrendsPage;
   let fixture: ComponentFixture<TrendsPage>;
+  let entryServiceMock: EntryServiceMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    jasmine.clock().install();
+    jasmine.clock().mockDate(FIXED_NOW);
+
+    entryServiceMock = new EntryServiceMock();
+
+    await TestBed.configureTestingModule({
+      imports: [TrendsPage],
+      providers: [
+        provideIonicAngular(),
+        { provide: EntryService, useValue: entryServiceMock },
+        { provide: UtilsService, useValue: new UtilsServiceMock() },
+      ],
+    }).compileComponents();
+
     fixture = TestBed.createComponent(TrendsPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    jasmine.clock().uninstall();
   });
 
   it('should create', () => {
@@ -121,12 +159,9 @@ describe('TrendsPage', () => {
 
   describe('template rendering', () => {
     it('renders trends-month elements for each month', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const monthEls = fixture.nativeElement.querySelectorAll('.trends-month');
@@ -134,12 +169,9 @@ describe('TrendsPage', () => {
     });
 
     it('applies trends-month--selected class to the selected month', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const selectedEls = fixture.nativeElement.querySelectorAll('.trends-month--selected');
@@ -147,12 +179,9 @@ describe('TrendsPage', () => {
     });
 
     it('clicking a month bar changes selection', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const monthEls = fixture.nativeElement.querySelectorAll('.trends-month');
@@ -164,12 +193,9 @@ describe('TrendsPage', () => {
     });
 
     it('renders detail panel when data exists', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const detailEl = fixture.nativeElement.querySelector('.trends-detail');
@@ -177,12 +203,9 @@ describe('TrendsPage', () => {
     });
 
     it('renders detail section headers', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const sectionHeaders = fixture.nativeElement.querySelectorAll('.trends-detail__section-header');
@@ -190,12 +213,9 @@ describe('TrendsPage', () => {
     });
 
     it('renders detail title with month label', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const titleEl = fixture.nativeElement.querySelector('.trends-detail__title');
@@ -204,12 +224,9 @@ describe('TrendsPage', () => {
     });
 
     it('does not render future note for current month', () => {
-      const entryService = TestBed.inject(EntryService);
-      const entry = buildEntry({
-        type: EntryType.INCOME,
-        amount: 100000,
-      });
-      entryService.addEntry(entry);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
       fixture.detectChanges();
 
       const futureNote = fixture.nativeElement.querySelector('.trends-detail__future-note');

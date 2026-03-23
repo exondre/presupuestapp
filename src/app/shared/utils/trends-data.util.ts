@@ -300,8 +300,10 @@ function projectEntryOccurrences(
   if (Number.isNaN(anchorDate.getTime())) return;
 
   const nextIndex = recurrence.occurrenceIndex + 1;
+  const excludedSet = new Set(recurrence.excludedOccurrences ?? []);
 
   for (let i = nextIndex; i < total; i++) {
+    if (excludedSet.has(i)) continue;
     const projectedDate = new Date(anchorDate);
     projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i);
     const projectedKey = buildMonthKey(projectedDate);
@@ -537,8 +539,10 @@ export function projectFutureInstallmentEntries(
     const total = (recurrence.termination as { mode: 'occurrences'; total: number }).total;
     const anchorDate = new Date(recurrence.anchorDate);
     if (Number.isNaN(anchorDate.getTime())) continue;
+    const excludedSet = new Set(recurrence.excludedOccurrences ?? []);
 
     for (let i = 0; i < total; i++) {
+      if (excludedSet.has(i)) continue;
       const projectedDate = new Date(anchorDate);
       projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i);
       const projectedKey = buildMonthKey(projectedDate);
