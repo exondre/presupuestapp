@@ -1,7 +1,7 @@
 {
-  "name": "PresupuestApp",
+  "name": "presupuest-app",
   "description": "An application for managing budgets.",
-  "version": "0.0.12",
+  "version": "0.1.0",
   "author": "Edixon Gutiérrez Mármol",
   "engines": {
     "node": "22.x"
