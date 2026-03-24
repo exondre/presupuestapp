@@ -1,0 +1,48 @@
+@if (!searchVisible()) {
+  <div class="pull-to-search__affordance-zone">
+    @if (hintVisible()) {
+      <div
+        class="pull-to-search__hint"
+        [style.opacity]="pullProgress() > 0 ? (1 - pullProgress()) : null"
+      >
+        <ion-icon
+          name="arrow-down-outline"
+          class="pull-to-search__hint-arrow"
+          aria-hidden="true"
+        ></ion-icon>
+        <span class="pull-to-search__hint-label">buscar</span>
+      </div>
+    }
+
+    @if (pullProgress() > 0) {
+      <div
+        class="pull-to-search__pull-indicator"
+        [style.opacity]="pullProgress()"
+      >
+        <ion-icon
+          name="search-outline"
+          aria-hidden="true"
+          [style.transform]="'scale(' + (0.4 + pullProgress() * 0.6) + ')'"
+        ></ion-icon>
+      </div>
+    }
+  </div>
+}
+
+<div
+  class="pull-to-search__bar"
+  [class.pull-to-search__bar--visible]="searchVisible()"
+>
+  <ion-searchbar
+    mode="ios"
+    placeholder="Buscar transacciones..."
+    [value]="searchTerm()"
+    (ionInput)="handleSearchInput($event)"
+    (ionClear)="handleClear()"
+    (ionCancel)="handleCancel()"
+    [showCancelButton]="'focus'"
+    [animated]="true"
+    [debounce]="250"
+    cancelButtonText="Cancelar"
+  ></ion-searchbar>
+</div>
