@@ -19,7 +19,7 @@ ion-title {
 }
 
 .balance-summary-card {
-  margin: 1rem 1rem;
+  margin: 0.5rem 1rem 1rem;
   border-radius: var(--radius-lg);
 
   &__header {
@@ -118,6 +118,35 @@ ion-title {
   ion-icon {
     color: #ffffff;
     font-size: 1.5rem;
+  }
+}
+
+// ── Search-specific empty state ──
+// Lighter and more contextual than the main empty state.
+// The dashed ring around the icon reinforces the "searching" metaphor.
+
+.empty-state--search {
+  margin-top: 3rem;
+
+  .empty-state__icon {
+    font-size: 2.5rem;
+    opacity: 0.4;
+    color: var(--ion-color-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .empty-state__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ion-color-medium-shade);
+  }
+
+  .empty-state__subtitle {
+    font-size: 0.8125rem;
+    color: var(--ion-color-medium-tint);
+    max-width: 240px;
+    margin: 0.25rem auto 0;
+    line-height: 1.4;
   }
 }
 
