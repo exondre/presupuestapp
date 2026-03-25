@@ -837,9 +837,7 @@ describe('SettingsPage', () => {
     }));
 
     it('should work without error argument', fakeAsync(() => {
-      expect(async () => {
-        await (component as any).presentError('msg without error');
-      }).not.toThrow();
+      expectAsync((component as any).presentError('msg without error')).toBeResolved();
       tick();
     }));
   });

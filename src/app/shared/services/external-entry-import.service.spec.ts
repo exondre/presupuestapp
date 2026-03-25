@@ -334,9 +334,9 @@ describe('ExternalEntryImportService', () => {
 
       expect(result.entries.length).toBe(1);
       const parsedDate = new Date(result.entries[0].date);
-      expect(parsedDate.getFullYear()).toBe(2026);
-      expect(parsedDate.getMonth()).toBe(0);
-      expect(parsedDate.getDate()).toBe(15);
+      expect(parsedDate.getUTCFullYear()).toBe(2026);
+      expect(parsedDate.getUTCMonth()).toBe(0);
+      expect(parsedDate.getUTCDate()).toBe(15);
     });
   });
 
@@ -357,9 +357,9 @@ describe('ExternalEntryImportService', () => {
       const d = new Date(Date.UTC(2025, 5, 20)); // 20 Jun 2025
       const result = (service as any).parseDate(d);
       const parsed = new Date(result);
-      expect(parsed.getFullYear()).toBe(2025);
-      expect(parsed.getMonth()).toBe(5);
-      expect(parsed.getDate()).toBe(20);
+      expect(parsed.getUTCFullYear()).toBe(2025);
+      expect(parsed.getUTCMonth()).toBe(5);
+      expect(parsed.getUTCDate()).toBe(20);
     });
 
     it('should return null for an invalid Date object', () => {
@@ -370,9 +370,9 @@ describe('ExternalEntryImportService', () => {
       const result = (service as any).parseDate('25/12/2025');
       expect(result).not.toBeNull();
       const parsed = new Date(result);
-      expect(parsed.getFullYear()).toBe(2025);
-      expect(parsed.getMonth()).toBe(11); // December
-      expect(parsed.getDate()).toBe(25);
+      expect(parsed.getUTCFullYear()).toBe(2025);
+      expect(parsed.getUTCMonth()).toBe(11); // December
+      expect(parsed.getUTCDate()).toBe(25);
     });
 
     it('should return null for a string with an invalid date format', () => {
