@@ -1,0 +1,118 @@
+:host {
+  display: block;
+  position: relative;
+}
+
+// ── Affordance zone ──
+// Fixed-height container shared by the hint and the pull indicator.
+// Both children are absolutely positioned inside it, so neither
+// element shifts the layout when it appears or disappears.
+
+.pull-to-search__affordance-zone {
+  position: relative;
+  height: 1rem;
+  margin-top: 0.25rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+// ── Shared positioning for both overlaid children ──
+
+.pull-to-search__hint,
+.pull-to-search__pull-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+// ── Affordance hint ──
+
+.pull-to-search__hint {
+  animation: hint-lifecycle 5s ease forwards;
+}
+
+.pull-to-search__hint-arrow {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium-tint);
+  opacity: 0.5;
+  animation: arrow-glow 2.4s ease-in-out 2;
+}
+
+.pull-to-search__hint-label {
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium-tint);
+  opacity: 0.5;
+}
+
+@keyframes hint-lifecycle {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes arrow-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    color: var(--ion-color-medium-tint);
+    filter: drop-shadow(0 0 0px rgba(255, 115, 32, 0));
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    color: var(--ion-color-primary);
+    filter: drop-shadow(0 0 4px rgba(255, 115, 32, 0.6));
+    transform: translateY(1px);
+  }
+}
+
+// ── Pull indicator ──
+
+.pull-to-search__pull-indicator {
+  ion-icon {
+    font-size: 1rem;
+    color: var(--ion-color-primary);
+    filter: drop-shadow(0 0 6px rgba(255, 115, 32, 0.25));
+  }
+}
+
+// ── Search bar ──
+
+.pull-to-search__bar {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+  padding: 0 0.5rem;
+  will-change: max-height, opacity;
+
+  &--visible {
+    max-height: 50px;
+    opacity: 1;
+  }
+
+  ion-searchbar {
+    --background: rgba(var(--ion-color-light-rgb), 0.85);
+    --border-radius: var(--radius-md);
+    --box-shadow: none;
+    --placeholder-color: var(--ion-color-medium);
+    --placeholder-opacity: 0.6;
+    --icon-color: var(--ion-color-primary);
+    --clear-button-color: var(--ion-color-medium);
+    --color: var(--ion-text-color);
+    padding: 0;
+    font-size: 0.9375rem;
+  }
+}

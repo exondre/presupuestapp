@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { ActionSheetController, AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar, NavController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { addOutline, chevronBackOutline, informationCircleOutline, walletOutline } from 'ionicons/icons';
+import { addOutline, chevronBackOutline, informationCircleOutline, searchOutline, walletOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
@@ -12,6 +12,7 @@ import {
   BalanceItemComponent,
   BalanceItemViewModel,
 } from './balance-item.component';
+import { PullToSearchComponent } from './pull-to-search/pull-to-search.component';
 
 interface BalanceDayGroup {
   key: string;
@@ -48,6 +49,7 @@ interface BalanceDayGroup {
     IonFab,
     IonFabButton,
     NewEntryModalComponent,
+    PullToSearchComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -95,6 +97,12 @@ export class BalancePage {
 
   private readonly referenceMonth = signal<Date | null>(null);
 
+  protected readonly searchTerm = signal('');
+
+  protected readonly searchActive = computed(
+    () => this.searchTerm().trim().length > 0,
+  );
+
   protected readonly filteredEntries = computed(() => {
     const entries = this.entryService.entriesSignal();
     const referenceMonth = this.referenceMonth();
@@ -105,8 +113,19 @@ export class BalancePage {
     return this.entryService.filterEntriesByMonth(referenceMonth);
   });
 
+  protected readonly displayedEntries = computed(() => {
+    const entries = this.filteredEntries();
+    const term = this.normalizeSearchText(this.searchTerm());
+
+    if (term.length === 0) {
+      return entries;
+    }
+
+    return entries.filter((entry) => this.matchesSearchTerm(entry, term));
+  });
+
   protected readonly groups = computed(() =>
-    this.buildGroups(this.filteredEntries()),
+    this.buildGroups(this.displayedEntries()),
   );
   protected readonly displayedMonthSummary = computed(() => {
     const entries = this.entryService.entriesSignal();
@@ -154,6 +173,7 @@ export class BalancePage {
       'add-outline': addOutline,
       'chevron-back-outline': chevronBackOutline,
       'wallet-outline': walletOutline,
+      'search-outline': searchOutline,
     });
 
     this.activatedRoute.queryParamMap
@@ -333,6 +353,67 @@ export class BalancePage {
     }
 
     this.referenceMonth.set(normalizedReference);
+  }
+
+  /**
+   * Updates the search term used to filter transactions.
+   *
+   * @param term Current search input value.
+   */
+  protected handleSearchTermChange(term: string): void {
+    this.searchTerm.set(term);
+  }
+
+  /**
+   * Resets the search term and restores the full transaction list.
+   */
+  protected handleSearchCleared(): void {
+    this.searchTerm.set('');
+  }
+
+  /**
+   * Determines whether the entry matches the search term across its searchable fields.
+   *
+   * @param entry Entry to test.
+   * @param term Lowercase, trimmed search term.
+   * @returns True when the entry matches the term on description, formatted amount, or formatted date.
+   */
+  private matchesSearchTerm(entry: EntryData, term: string): boolean {
+    const description = this.normalizeSearchText(this.resolveDescription(entry.description));
+    if (description.includes(term)) {
+      return true;
+    }
+
+    const amountLabel = this.normalizeSearchText(this.formatAmount(entry.amount));
+    if (amountLabel.includes(term)) {
+      return true;
+    }
+
+    const occurrenceDate = new Date(entry.date);
+    const dayDescriptor = this.createDayDescriptor(occurrenceDate);
+    if (this.normalizeSearchText(dayDescriptor.label).includes(term)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Normalizes a text value for accent-insensitive, case-insensitive comparison.
+   *
+   * @param value Text to normalize.
+   * @returns Lowercase string with diacritical marks stripped, or empty string for nullish input.
+   */
+  private normalizeSearchText(value: string | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
   }
 
   /**

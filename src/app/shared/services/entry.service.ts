@@ -1105,6 +1105,7 @@ export class EntryService {
       recurrence,
       requiresSync: recurrenceRequiresSync,
     } = this.normalizeStoredRecurrence(entry.recurrence, normalizedDate);
+    const idempotencyInfo = this.normalizeIdempotencyInfo(entry.idempotencyInfo);
 
     const id =
       typeof entry.id === 'string' && entry.id.trim().length > 0
@@ -1127,6 +1128,7 @@ export class EntryService {
         type,
         updatedAt,
         recurrence,
+        ...(idempotencyInfo ? { idempotencyInfo } : {}),
       },
       requiresSync,
     };
@@ -1199,6 +1201,32 @@ export class EntryService {
     }
 
     return { type: EntryType.EXPENSE, requiresSync: true };
+  }
+
+  /**
+   * Normalizes the idempotencyInfo array, filtering out invalid items.
+   *
+   * @param info Raw idempotencyInfo value retrieved from storage.
+   * @returns A validated array of IdempotencyInfo, or undefined if none are valid.
+   */
+  private normalizeIdempotencyInfo(
+    info: unknown
+  ): IdempotencyInfo[] | undefined {
+    if (!Array.isArray(info) || info.length === 0) {
+      return undefined;
+    }
+
+    const valid = info.filter(
+      (item): item is IdempotencyInfo =>
+        item !== null &&
+        typeof item === 'object' &&
+        typeof item.idempotencyKey === 'string' &&
+        item.idempotencyKey.length > 0 &&
+        typeof item.idempotencyVersion === 'string' &&
+        item.idempotencyVersion.length > 0
+    );
+
+    return valid.length > 0 ? valid : undefined;
   }
 
   /**
