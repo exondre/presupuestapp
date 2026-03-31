@@ -195,6 +195,33 @@
           button
           detail="false"
           class="settings-item"
+          (click)="handleEditUserInfo()"
+        >
+          <ion-icon
+            aria-hidden="true"
+            class="settings-item__icon"
+            name="person-outline"
+            slot="start"
+          ></ion-icon>
+          <ion-label>
+            @if (hasUserInfo()) {
+              <h2>Datos personales</h2>
+              <p>{{ userInfo()!.fullName }} · {{ userInfo()!.idDocument }}</p>
+            } @else {
+              <h2>Ingresar datos personales</h2>
+              <p>
+                Nombre y documento de identificación, usados solo localmente para procesar extractos bancarios.
+              </p>
+            }
+          </ion-label>
+        </ion-item>
+      </ion-list>
+
+      <ion-list lines="none" class="settings-list">
+        <ion-item
+          button
+          detail="false"
+          class="settings-item"
           (click)="openXlsxFileSelector()"
         >
           <ion-icon
@@ -315,4 +342,12 @@
     (importConfirmed)="handleImportConfirmed($event)"
     (dismissed)="handleImportReviewDismissed()"
   ></app-import-review-modal>
+
+  <app-user-info-prompt-modal
+    [isOpen]="isUserInfoFormOpen()"
+    [initialData]="userInfo()"
+    [startInFormMode]="true"
+    (infoSaved)="handleUserInfoSaved($event)"
+    (dismissed)="handleUserInfoFormDismissed()"
+  ></app-user-info-prompt-modal>
 </ion-content>

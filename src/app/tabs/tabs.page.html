@@ -26,3 +26,11 @@
     </ion-tab-button>
   </ion-tab-bar>
 </ion-tabs>
+
+<app-user-info-prompt-modal
+  [isOpen]="isUserInfoPromptOpen()"
+  (infoSaved)="handleUserInfoSaved($event)"
+  (remindLater)="handleUserInfoRemindLater()"
+  (dontAskAgain)="handleUserInfoDontAskAgain()"
+  (dismissed)="handleUserInfoPromptDismissed()"
+></app-user-info-prompt-modal>

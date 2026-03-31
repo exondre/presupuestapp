@@ -15,6 +15,8 @@ import { EntrySyncService } from '../shared/services/entry-sync.service';
 import { ExternalEntryImportService } from '../shared/services/external-entry-import.service';
 import { AlertController, LoadingController, ToastController } from '@ionic/angular/standalone';
 import { ImportReviewModalComponent } from '../shared/components/import-review-modal/import-review-modal.component';
+import { UserInfoPromptModalComponent } from '../shared/components/user-info-prompt-modal/user-info-prompt-modal.component';
+import { UserInfoService } from '../shared/services/user-info.service';
 
 // ---------------------------------------------------------------------------
 // Stub for ImportReviewModalComponent so the template compiles without errors
@@ -25,6 +27,13 @@ import { ImportReviewModalComponent } from '../shared/components/import-review-m
   template: '',
 })
 class MockImportReviewModalComponent {}
+
+@Component({
+  selector: 'app-user-info-prompt-modal',
+  standalone: true,
+  template: '',
+})
+class MockUserInfoPromptModalComponent {}
 
 // ---------------------------------------------------------------------------
 // Helper: build a mock HTMLInputElement-like ElementRef
@@ -50,6 +59,10 @@ describe('SettingsPage', () => {
   };
   let entrySyncServiceMock: jasmine.SpyObj<EntrySyncService>;
   let externalEntryImportServiceMock: jasmine.SpyObj<ExternalEntryImportService>;
+  let userInfoServiceMock: jasmine.SpyObj<UserInfoService> & {
+    userInfo: jasmine.Spy;
+    hasUserInfo: jasmine.Spy;
+  };
   let alertControllerMock: jasmine.SpyObj<AlertController>;
   let loadingControllerMock: jasmine.SpyObj<LoadingController>;
   let toastControllerMock: jasmine.SpyObj<ToastController>;
@@ -113,6 +126,15 @@ describe('SettingsPage', () => {
     entrySyncServiceMock.printLastUploadedFileContent.and.returnValue(Promise.resolve());
     entrySyncServiceMock.clearRemoteData.and.returnValue(Promise.resolve());
 
+    // --- UserInfoService ---
+    userInfoServiceMock = jasmine.createSpyObj('UserInfoService', [
+      'saveUserInfo',
+      'clearUserInfo',
+    ], {
+      userInfo: jasmine.createSpy('userInfo').and.returnValue(null),
+      hasUserInfo: jasmine.createSpy('hasUserInfo').and.returnValue(false),
+    });
+
     // --- ExternalEntryImportService ---
     externalEntryImportServiceMock = jasmine.createSpyObj('ExternalEntryImportService', [
       'importFromExcel',
@@ -157,6 +179,7 @@ describe('SettingsPage', () => {
         { provide: FirebaseAuthService, useValue: firebaseAuthServiceMock },
         { provide: EntrySyncService, useValue: entrySyncServiceMock },
         { provide: ExternalEntryImportService, useValue: externalEntryImportServiceMock },
+        { provide: UserInfoService, useValue: userInfoServiceMock },
         { provide: AlertController, useValue: alertControllerMock },
         { provide: LoadingController, useValue: loadingControllerMock },
         { provide: ToastController, useValue: toastControllerMock },
@@ -164,8 +187,8 @@ describe('SettingsPage', () => {
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     })
       .overrideComponent(SettingsPage, {
-        remove: { imports: [ImportReviewModalComponent] },
-        add: { imports: [MockImportReviewModalComponent] },
+        remove: { imports: [ImportReviewModalComponent, UserInfoPromptModalComponent] },
+        add: { imports: [MockImportReviewModalComponent, MockUserInfoPromptModalComponent] },
       })
       .compileComponents();
 
@@ -1207,5 +1230,59 @@ describe('SettingsPage', () => {
         jasmine.any(Error),
       );
     }));
+  });
+
+  // =========================================================================
+  // User info
+  // =========================================================================
+
+  describe('user info', () => {
+    it('exposes userInfo signal from the service', () => {
+      expect((component as any).userInfo()).toBeNull();
+    });
+
+    it('exposes hasUserInfo signal from the service', () => {
+      expect((component as any).hasUserInfo()).toBeFalse();
+    });
+
+    it('isUserInfoFormOpen defaults to false', () => {
+      expect((component as any).isUserInfoFormOpen()).toBeFalse();
+    });
+
+    describe('handleEditUserInfo', () => {
+      it('opens the user info form modal', () => {
+        (component as any).handleEditUserInfo();
+
+        expect((component as any).isUserInfoFormOpen()).toBeTrue();
+      });
+    });
+
+    describe('handleUserInfoSaved', () => {
+      it('saves user info via the service', () => {
+        const info = { fullName: 'Test User', idDocument: '12345678-9' };
+
+        (component as any).handleUserInfoSaved(info);
+
+        expect(userInfoServiceMock.saveUserInfo).toHaveBeenCalledWith(info);
+      });
+
+      it('closes the form modal', () => {
+        (component as any).isUserInfoFormOpen.set(true);
+
+        (component as any).handleUserInfoSaved({ fullName: 'Test', idDocument: '123' });
+
+        expect((component as any).isUserInfoFormOpen()).toBeFalse();
+      });
+    });
+
+    describe('handleUserInfoFormDismissed', () => {
+      it('closes the form modal', () => {
+        (component as any).isUserInfoFormOpen.set(true);
+
+        (component as any).handleUserInfoFormDismissed();
+
+        expect((component as any).isUserInfoFormOpen()).toBeFalse();
+      });
+    });
   });
 });
