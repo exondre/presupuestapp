@@ -15,10 +15,49 @@
 
     <ion-content class="import-review-content">
       <div class="import-review-summary ion-padding">
-        <ion-badge color="success">{{ readyCount() }} listos</ion-badge>
+        <ion-badge color="success">{{ effectiveReadyCount() }} listos</ion-badge>
         <ion-badge color="warning">{{ potentialCount() }} por revisar</ion-badge>
         <ion-badge color="medium">{{ discardedCount() }} descartados</ion-badge>
+        @if (selfTransferCount() > 0) {
+          <ion-badge color="tertiary">{{ ignoredSelfTransferCount() }} auto-transferencias</ion-badge>
+        }
       </div>
+
+      <!-- Self-transfers section — only shown when detected -->
+      @if (selfTransfers().length > 0) {
+        <div class="import-review-section">
+          <ion-text color="dark" class="import-review-section__title">
+            <h3>Transferencias entre cuentas propias</h3>
+          </ion-text>
+          <ion-text color="medium" class="import-review-section__subtitle">
+            <p>Estas transacciones parecen ser entre tus propias cuentas. Se ignoran por defecto para no afectar tu balance.</p>
+          </ion-text>
+          <ion-list lines="full" class="import-review-list">
+            @for (st of selfTransfers(); track st.entry) {
+              <ion-item class="import-review-item import-review-item--compact">
+                <ion-label>
+                  <h3>{{ st.entry.description || 'Sin descripción' }}</h3>
+                  <p>
+                    <span [class]="st.entry.type === 'EXPENSE' ? 'import-review-item__amount--expense' : 'import-review-item__amount--income'">
+                      {{ utils.formatAmount(st.entry.amount) }}
+                    </span>
+                    · {{ formatDate(st.entry.date) }}
+                  </p>
+                </ion-label>
+                <ion-button
+                  slot="end"
+                  size="small"
+                  fill="outline"
+                  [color]="st.ignored ? 'medium' : 'success'"
+                  (click)="toggleSelfTransfer(st)"
+                >
+                  {{ st.ignored ? 'Ignorada' : 'Incluida' }}
+                </ion-button>
+              </ion-item>
+            }
+          </ion-list>
+        </div>
+      }
 
       <!-- Potential Duplicates (main review area) -->
       <div class="import-review-section">
@@ -129,10 +168,10 @@
         <!-- Ready to import entries -->
         <ion-accordion value="ready">
           <ion-item slot="header" color="light">
-            <ion-label>Listos para importar ({{ readyCount() }})</ion-label>
+            <ion-label>Listos para importar ({{ displayReadyToImport().length }})</ion-label>
           </ion-item>
           <div slot="content">
-            @if (readyToImport().length === 0) {
+            @if (displayReadyToImport().length === 0) {
               <div class="import-review-empty ion-padding">
                 <ion-text color="medium">
                   <p>No hay registros listos para importar.</p>
@@ -140,7 +179,7 @@
               </div>
             }
             <ion-list lines="full" class="import-review-list import-review-list--compact">
-              @for (entry of readyToImport(); track entry) {
+              @for (entry of displayReadyToImport(); track entry) {
                 <ion-item class="import-review-item import-review-item--compact">
                   <ion-label>
                     <h3>{{ entry.description || 'Sin descripción' }}</h3>
@@ -173,11 +212,11 @@
         <ion-button
           expand="block"
           color="primary"
-          [disabled]="readyCount() === 0"
+          [disabled]="effectiveReadyCount() === 0"
           (click)="confirmImport()"
         >
           <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
-          Importar {{ readyCount() }} transacciones
+          Importar {{ effectiveReadyCount() }} transacciones
         </ion-button>
       </div>
     </ion-content>

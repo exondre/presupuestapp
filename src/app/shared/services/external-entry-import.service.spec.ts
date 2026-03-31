@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { EntryData, EntryType } from '../models/entry-data.model';
-import { ExternalEntryImportService, ParsedEntry } from './external-entry-import.service';
+import { ExternalEntryImportService, FORMAT_DETECTION_FAILED, ParsedEntry } from './external-entry-import.service';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -138,11 +138,10 @@ describe('ExternalEntryImportService', () => {
       expect(result.entries[0].amount).toBe(3000);
     }, 10000);
 
-    it('should use falabella-cmr as default format when no format is provided', async () => {
+    it('should throw FORMAT_DETECTION_FAILED when format cannot be auto-detected', async () => {
       const file = base64ToFile(DATA_XLSX_B64, 'test.xlsx');
-      const result = await service.importFromExcel(file);
 
-      expect(result.entries.length).toBe(1);
+      await expectAsync(service.importFromExcel(file)).toBeRejectedWithError(FORMAT_DETECTION_FAILED);
     }, 10000);
 
     it('should throw an error for unsupported formats', async () => {
@@ -1000,6 +999,267 @@ describe('ExternalEntryImportService', () => {
 
     it('should handle "compra" prefix case-insensitively', () => {
       expect((service as any).normalizeFalabellaDescription('compra tienda xyz')).toBe('tienda xyz');
+    });
+  });
+
+  // =========================================================================
+  // detectFormat
+  // =========================================================================
+
+  describe('detectFormat()', () => {
+    it('should detect falabella-cmr from header row', () => {
+      const rows = [
+        ['FECHA', 'DESCRIPCION', 'TITULAR/ADICIONAL', 'MONTO', 'CUOTAS PENDIENTES', 'VALOR CUOTA'],
+      ];
+      expect(service.detectFormat(rows as any)).toEqual({ format: 'falabella-cmr' });
+    });
+
+    it('should detect bice-provisoria when "Abonos y cargos" present but no "Saldos diarios"', () => {
+      const rows = [
+        [null, null, null, null, null],
+        [null, 'Resumen del periodo', null, null, null],
+        [null, 'Abonos y cargos', null, null, null],
+        [null, 'Fecha', 'Categoría', 'Descripción', 'Monto'],
+        [null, '30 mar 2026', 'Abonos', 'Pago salario', '$1.000'],
+      ];
+      expect(service.detectFormat(rows as any)).toEqual({ format: 'bice-provisoria' });
+    });
+
+    it('should detect bice-definitiva when both "Abonos y cargos" and "Saldos diarios" present', () => {
+      const rows = [
+        [null, null, null, null, null],
+        [null, 'Abonos y cargos', null, null, null],
+        [null, 'Fecha', 'Categoría', 'Nº operación', 'Descripción', 'Monto'],
+        [null, '2 feb 2026', 'Cargos', '12345', 'Transferencia', '$500'],
+        [null, 'Saldos diarios', null, null, null],
+      ];
+      expect(service.detectFormat(rows as any)).toEqual({ format: 'bice-definitiva' });
+    });
+
+    it('should return null for unrecognized format', () => {
+      const rows = [
+        ['Columna A', 'Columna B', 'Columna C'],
+        ['dato1', 'dato2', 'dato3'],
+      ];
+      expect(service.detectFormat(rows as any)).toEqual({ format: null });
+    });
+
+    it('should return null for empty rows', () => {
+      expect(service.detectFormat([])).toEqual({ format: null });
+    });
+  });
+
+  // =========================================================================
+  // parseSpanishDate (private — accessed via any)
+  // =========================================================================
+
+  describe('parseSpanishDate()', () => {
+    it('should parse "30 mar 2026" correctly', () => {
+      const result = (service as any).parseSpanishDate('30 mar 2026');
+      const date = new Date(result);
+      expect(date.getFullYear()).toBe(2026);
+      expect(date.getMonth()).toBe(2); // March = 2
+      expect(date.getDate()).toBe(30);
+    });
+
+    it('should parse single-digit day "2 feb 2026" correctly', () => {
+      const result = (service as any).parseSpanishDate('2 feb 2026');
+      const date = new Date(result);
+      expect(date.getFullYear()).toBe(2026);
+      expect(date.getMonth()).toBe(1); // February = 1
+      expect(date.getDate()).toBe(2);
+    });
+
+    it('should parse all month abbreviations', () => {
+      const months: Array<[string, number]> = [
+        ['ene', 0], ['feb', 1], ['mar', 2], ['abr', 3],
+        ['may', 4], ['jun', 5], ['jul', 6], ['ago', 7],
+        ['sep', 8], ['oct', 9], ['nov', 10], ['dic', 11],
+      ];
+      for (const [abbr, index] of months) {
+        const result = (service as any).parseSpanishDate(`1 ${abbr} 2026`);
+        expect(new Date(result).getMonth()).toBe(index);
+      }
+    });
+
+    it('should return null for null input', () => {
+      expect((service as any).parseSpanishDate(null)).toBeNull();
+    });
+
+    it('should return null for unrecognized format', () => {
+      expect((service as any).parseSpanishDate('01/01/2026')).toBeNull();
+      expect((service as any).parseSpanishDate('invalid')).toBeNull();
+      expect((service as any).parseSpanishDate('30 xyz 2026')).toBeNull();
+    });
+  });
+
+  // =========================================================================
+  // parseBiceFormat (private — accessed via any)
+  // =========================================================================
+
+  describe('parseBiceFormat()', () => {
+    function makeBiceProvRows(transactions: unknown[][]): unknown[][] {
+      return [
+        [null, null, null, null, null],
+        [null, 'Resumen del periodo', null, null, null],
+        [null, null, null, null, null],
+        [null, 'Abonos y cargos', null, null, null],
+        [null, 'Fecha', 'Categoría', 'Descripción', 'Monto'],
+        ...transactions,
+      ];
+    }
+
+    function makeBiceDefRows(transactions: unknown[][]): unknown[][] {
+      return [
+        [null, null, null, null, null, null],
+        [null, 'Resumen del periodo', null, null, null, null],
+        [null, null, null, null, null, null],
+        [null, 'Abonos y cargos', null, null, null, null],
+        [null, 'Fecha', 'Categoría', 'Nº operación', 'Descripción', 'Monto'],
+        ...transactions,
+      ];
+    }
+
+    it('should parse an Abono as INCOME (provisoria)', () => {
+      const rows = makeBiceProvRows([
+        [null, '30 mar 2026', 'Abonos', 'Pago salario', '$2.000.000'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'provisoria');
+      expect(result.entries.length).toBe(1);
+      expect(result.entries[0].type).toBe(EntryType.INCOME);
+      expect(result.entries[0].amount).toBe(2000000);
+      expect(result.entries[0].description).toBe('Pago salario');
+    });
+
+    it('should parse a Cargo as EXPENSE (provisoria)', () => {
+      const rows = makeBiceProvRows([
+        [null, '15 mar 2026', 'Cargos', 'Transferencia a banco X', '$50.000'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'provisoria');
+      expect(result.entries[0].type).toBe(EntryType.EXPENSE);
+      expect(result.entries[0].amount).toBe(50000);
+    });
+
+    it('should use normalized description for idempotency key (provisoria)', () => {
+      const rows = makeBiceProvRows([
+        [null, '1 ene 2026', 'Abonos', 'Abono  por   transferencia', '$100'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'provisoria');
+      const entry = result.entries[0];
+      expect(entry.description).toBe('Abono  por   transferencia');
+      expect(entry.idempotencyInfo[0].idempotencyKey).toContain('abono por transferencia');
+    });
+
+    it('should stop reading at "Saldos diarios" (definitiva)', () => {
+      const rows = makeBiceDefRows([
+        [null, '2 feb 2026', 'Cargos', '12345', 'Cargo comisión', '$7.000'],
+        [null, 'Saldos diarios', null, null, null, null],
+        [null, '3 feb 2026', 'Abonos', '-', 'No debe parsearse', '$999'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'definitiva');
+      expect(result.entries.length).toBe(1);
+    });
+
+    it('should use correct column offsets for definitiva (col 4 = descripción, col 5 = monto)', () => {
+      const rows = makeBiceDefRows([
+        [null, '10 feb 2026', 'Abonos', '41095536', 'Abono desde MACH', '$657.800'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'definitiva');
+      expect(result.entries[0].description).toBe('Abono desde MACH');
+      expect(result.entries[0].amount).toBe(657800);
+    });
+
+    it('should skip rows with unknown categoria', () => {
+      const rows = makeBiceProvRows([
+        [null, '1 ene 2026', 'Desconocido', 'Algo raro', '$100'],
+        [null, '2 ene 2026', 'Abonos', 'Valido', '$200'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'provisoria');
+      expect(result.entries.length).toBe(1);
+      expect(result.skippedRows).toBe(1);
+    });
+
+    it('should return empty result when "Abonos y cargos" section not found', () => {
+      const rows = [
+        [null, 'Sin sección', null, null, null],
+      ];
+      const result = (service as any).parseBiceFormat(rows, 'provisoria');
+      expect(result.entries.length).toBe(0);
+      expect(result.totalRows).toBe(0);
+    });
+
+    it('should not set recurrence or installmentInfo on BICE entries', () => {
+      const rows = makeBiceProvRows([
+        [null, '5 mar 2026', 'Cargos', 'Sin cuotas', '$10.000'],
+      ]);
+      const result = (service as any).parseBiceFormat(rows, 'provisoria');
+      expect(result.entries[0].recurrence).toBeUndefined();
+      expect(result.entries[0].installmentInfo).toBeUndefined();
+    });
+  });
+
+  // =========================================================================
+  // detectSelfTransfers
+  // =========================================================================
+
+  describe('detectSelfTransfers()', () => {
+    const userInfo = {
+      fullName: 'Edixon Andres Gutierrez Marmol',
+      idDocument: '25.681.979-1',
+    };
+
+    function makeEntry(description: string, type = EntryType.EXPENSE): ParsedEntry {
+      return makeImportedEntry({ description, type, amount: 1000 });
+    }
+
+    it('should return empty array when userInfo is null', () => {
+      const entries = [makeEntry('Transferencia al banco X')];
+      expect(service.detectSelfTransfers(entries, null)).toEqual([]);
+    });
+
+    it('should NOT flag external income (RUT not present)', () => {
+      const desc = 'Abono por Pago Remuneraciones via CCA, originador Rut: 77612410-9 Nombre: Adm Serv Automat';
+      const result = service.detectSelfTransfers([makeEntry(desc, EntryType.INCOME)], userInfo);
+      expect(result.length).toBe(0);
+    });
+
+    it('should NOT flag transfer to third party (RUT appears once, different destination)', () => {
+      const desc = 'Transferencia de Edixon Gutierrez Marmol Rut 25.681.979-1 desde Banco BICE a Maria Jose Martinez Rut 15.640.213-3 a Cuenta Corriente de Banco Santander Santiago';
+      const result = service.detectSelfTransfers([makeEntry(desc)], userInfo);
+      expect(result.length).toBe(0);
+    });
+
+    it('should flag transfer where RUT appears 2 times (self-transfer, cargo)', () => {
+      const desc = 'Transferencia de Edixon Gutierrez Marmol Rut 25.681.979-1 desde Banco BICE a Edixon Gutierrez Rut 25.681.979-1 a Cuenta Corriente de Banco BCI - MACHBANK';
+      const result = service.detectSelfTransfers([makeEntry(desc)], userInfo);
+      expect(result.length).toBe(1);
+      expect(result[0].ignored).toBeTrue();
+    });
+
+    it('should flag inbound transfer from own account ("abono por transferencia" + name + RUT)', () => {
+      const desc = 'Abono por transferencia de Edixon  Andres Gutierrez Marmol Rut 25.681.979-1 desde Banco BCI - MACH el 01/03/2026 a las 10:45';
+      const result = service.detectSelfTransfers([makeEntry(desc, EntryType.INCOME)], userInfo);
+      expect(result.length).toBe(1);
+      expect(result[0].ignored).toBeTrue();
+    });
+
+    it('should flag inbound transfer with uppercase name (case-insensitive)', () => {
+      const desc = 'Abono por transferencia de EDIXON ANDRES GUTIERREZ MARMOL Rut 25.681.979-1 desde B.Falabella el 01/03/2026 a las 10:21';
+      const result = service.detectSelfTransfers([makeEntry(desc, EntryType.INCOME)], userInfo);
+      expect(result.length).toBe(1);
+    });
+
+    it('should set ignored = true by default', () => {
+      const desc = 'Transferencia de Edixon Gutierrez Marmol Rut 25.681.979-1 desde Banco BICE a Edixon Gutierrez Rut 25.681.979-1 a Cuenta Corriente de Banco BCI';
+      const result = service.detectSelfTransfers([makeEntry(desc)], userInfo);
+      expect(result[0].ignored).toBeTrue();
+    });
+
+    it('should handle idDocument with dots (normalize before matching)', () => {
+      const infoWithDots = { fullName: 'Edixon Andres Gutierrez Marmol', idDocument: '25.681.979-1' };
+      const desc = 'Transferencia de Edixon Gutierrez Marmol Rut 25.681.979-1 desde Banco BICE a Edixon Gutierrez Rut 25.681.979-1 a Banco BCI';
+      const result = service.detectSelfTransfers([makeEntry(desc)], infoWithDots);
+      expect(result.length).toBe(1);
     });
   });
 });

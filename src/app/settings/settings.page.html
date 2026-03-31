@@ -350,4 +350,46 @@
     (infoSaved)="handleUserInfoSaved($event)"
     (dismissed)="handleUserInfoFormDismissed()"
   ></app-user-info-prompt-modal>
+
+  <ion-modal
+    class="format-error-modal"
+    [isOpen]="isUnsupportedFormatErrorOpen()"
+    (didDismiss)="isUnsupportedFormatErrorOpen.set(false)"
+  >
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Formato no soportado</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="isUnsupportedFormatErrorOpen.set(false)">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="ion-padding format-error-content">
+        <p class="format-error-content__intro">
+          No pudimos procesar el archivo. Verifica que el archivo corresponda a uno de estos formatos:
+        </p>
+
+        <ul class="format-list">
+          <li class="format-list__item">
+            <span class="format-list__name">BICE Cartola Cuenta Corriente</span>
+            <span class="format-list__ext">.xlsx</span>
+          </li>
+          <!-- <li class="format-list__item">
+            <span class="format-list__name">BICE Cartola Definitiva</span>
+            <span class="format-list__ext">.xlsx</span>
+          </li> -->
+          <li class="format-list__item">
+            <span class="format-list__name">CMR Falabella</span>
+            <span class="format-list__ext">.xlsx</span>
+          </li>
+        </ul>
+
+        <p class="format-error-content__outro">
+          Estamos trabajando para agregar soporte para más formatos en el futuro. Si el archivo es de otro formato, contáctanos para que podamos considerar agregar soporte para él.
+        </p>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-content>

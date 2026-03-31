@@ -104,6 +104,23 @@
   }
 }
 
+.import-review-section__subtitle {
+  p {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
+.import-review-item__amount--expense {
+  font-weight: 600;
+  color: var(--ion-color-danger);
+}
+
+.import-review-item__amount--income {
+  font-weight: 600;
+  color: var(--ion-color-success);
+}
+
 .import-review-footer {
   padding-bottom: calc(var(--ion-safe-area-bottom, 0px) + 1rem);
 }
