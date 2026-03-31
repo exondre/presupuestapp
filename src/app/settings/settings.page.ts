@@ -34,6 +34,7 @@ import {
   cloudUploadOutline,
   documentOutline,
   logoGoogle,
+  personOutline,
   syncOutline,
   warningOutline,
 } from 'ionicons/icons';
@@ -50,6 +51,9 @@ import {
   ImportConfirmation,
   ImportReviewModalComponent,
 } from '../shared/components/import-review-modal/import-review-modal.component';
+import { UserInfoPromptModalComponent } from '../shared/components/user-info-prompt-modal/user-info-prompt-modal.component';
+import { UserInfoService } from '../shared/services/user-info.service';
+import { UserInfo } from '../shared/models/user-info.model';
 
 /**
  * Provides application settings such as data import and export utilities.
@@ -75,6 +79,7 @@ import {
     IonSpinner,
     IonText,
     ImportReviewModalComponent,
+    UserInfoPromptModalComponent,
   ],
 })
 export class SettingsPage {
@@ -102,6 +107,8 @@ export class SettingsPage {
 
   private readonly externalEntryImportService = inject(ExternalEntryImportService);
 
+  private readonly userInfoService = inject(UserInfoService);
+
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly shouldShowAuthDebugInfo = environment.features.authDebugInfo;
@@ -113,6 +120,10 @@ export class SettingsPage {
   protected readonly isSigningIn = computed(() => this.authStatus() === 'signing-in');
   protected readonly isSigningOut = computed(() => this.authStatus() === 'signing-out');
   protected isSyncing = false;
+
+  protected readonly userInfo = this.userInfoService.userInfo;
+  protected readonly hasUserInfo = this.userInfoService.hasUserInfo;
+  protected readonly isUserInfoFormOpen = signal(false);
 
   protected readonly isImportReviewOpen = signal(false);
   protected readonly currentMergeResult = signal<MergeResult>({
@@ -131,6 +142,7 @@ export class SettingsPage {
       'sync-outline': syncOutline,
       'bug-outline': bugOutline,
       'close-circle-outline': closeCircleOutline,
+      'person-outline': personOutline,
     });
 
     this.firebaseAuthService.status$
@@ -151,6 +163,30 @@ export class SettingsPage {
         const warningMessage = 'Tu sesión con Google se cerró inesperadamente. Inicia sesión nuevamente si lo necesitas.';
         void this.presentToast(warningMessage, 'warning');
       });
+  }
+
+  /**
+   * Opens the user info form modal for editing.
+   */
+  protected handleEditUserInfo(): void {
+    this.isUserInfoFormOpen.set(true);
+  }
+
+  /**
+   * Saves the user info and closes the form modal.
+   *
+   * @param info The user info entered in the form.
+   */
+  protected handleUserInfoSaved(info: UserInfo): void {
+    this.userInfoService.saveUserInfo(info);
+    this.isUserInfoFormOpen.set(false);
+  }
+
+  /**
+   * Closes the user info form modal.
+   */
+  protected handleUserInfoFormDismissed(): void {
+    this.isUserInfoFormOpen.set(false);
   }
 
   /**
