@@ -38,6 +38,7 @@ import {
   MergeResult,
   ParsedEntry,
   PotentialDuplicate,
+  SelfTransferEntry,
 } from '../../services/external-entry-import.service';
 import { UtilsService } from '../../services/utils.service';
 
@@ -99,11 +100,25 @@ export class ImportReviewModalComponent {
   protected readonly potentialDuplicates = signal<PotentialDuplicate[]>([]);
   protected readonly discardedEntries = signal<ParsedEntry[]>([]);
   protected readonly readyToImport = signal<ParsedEntry[]>([]);
+  protected readonly selfTransfers = signal<SelfTransferEntry[]>([]);
   private readonly confirmedDuplicates = signal<PotentialDuplicate[]>([]);
 
   protected readonly readyCount = computed(() => this.readyToImport().length);
   protected readonly potentialCount = computed(() => this.potentialDuplicates().length);
   protected readonly discardedCount = computed(() => this.discardedEntries().length);
+  protected readonly selfTransferCount = computed(() => this.selfTransfers().length);
+  protected readonly ignoredSelfTransferCount = computed(
+    () => this.selfTransfers().filter((st) => st.ignored).length,
+  );
+  protected readonly effectiveReadyCount = computed(
+    () => this.readyToImport().length - this.ignoredSelfTransferCount(),
+  );
+
+  /** Entries in readyToImport that are not self-transfers (shown in the accordion). */
+  protected readonly displayReadyToImport = computed(() => {
+    const selfTransferEntries = new Set(this.selfTransfers().map((st) => st.entry));
+    return this.readyToImport().filter((e) => !selfTransferEntries.has(e));
+  });
 
   constructor() {
     addIcons({
@@ -120,6 +135,7 @@ export class ImportReviewModalComponent {
       this.potentialDuplicates.set([...result.potentialDuplicates]);
       this.discardedEntries.set([...result.exactDuplicates]);
       this.readyToImport.set([...result.readyToImport]);
+      this.selfTransfers.set([...(result.selfTransfers ?? []).map((st) => ({ ...st }))]);
       this.confirmedDuplicates.set([]);
     });
   }
@@ -170,11 +186,28 @@ export class ImportReviewModalComponent {
   }
 
   /**
-   * Emits the final list of approved entries and dismisses the modal.
+   * Toggles the ignored state of a self-transfer entry.
+   *
+   * @param selfTransfer The self-transfer entry to toggle.
+   */
+  protected toggleSelfTransfer(selfTransfer: SelfTransferEntry): void {
+    this.selfTransfers.update((list) =>
+      list.map((st) => (st === selfTransfer ? { ...st, ignored: !st.ignored } : st)),
+    );
+  }
+
+  /**
+   * Emits the final list of approved entries (excluding ignored self-transfers) and dismisses the modal.
    */
   protected confirmImport(): void {
+    const ignoredEntries = new Set(
+      this.selfTransfers()
+        .filter((st) => st.ignored)
+        .map((st) => st.entry),
+    );
+    const filteredReady = this.readyToImport().filter((e) => !ignoredEntries.has(e));
     this.importConfirmed.emit({
-      entriesToImport: [...this.readyToImport()],
+      entriesToImport: [...filteredReady],
       confirmedDuplicates: [...this.confirmedDuplicates()],
     });
   }

@@ -11,12 +11,14 @@ import {
   AlertController,
   IonAvatar,
   IonButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
   IonItem,
   IonLabel,
   IonList,
+  IonModal,
   IonSpinner,
   IonText,
   IonTitle,
@@ -45,6 +47,9 @@ import { environment } from '../../environments/environment';
 import { EntrySyncService } from '../shared/services/entry-sync.service';
 import {
   ExternalEntryImportService,
+  FORMAT_DETECTION_FAILED,
+  ImportFormat,
+  ImportResult,
   MergeResult,
 } from '../shared/services/external-entry-import.service';
 import {
@@ -78,6 +83,8 @@ import { UserInfo } from '../shared/models/user-info.model';
     IonButton,
     IonSpinner,
     IonText,
+    IonModal,
+    IonButtons,
     ImportReviewModalComponent,
     UserInfoPromptModalComponent,
   ],
@@ -126,6 +133,7 @@ export class SettingsPage {
   protected readonly isUserInfoFormOpen = signal(false);
 
   protected readonly isImportReviewOpen = signal(false);
+  protected readonly isUnsupportedFormatErrorOpen = signal(false);
   protected readonly currentMergeResult = signal<MergeResult>({
     exactDuplicates: [],
     potentialDuplicates: [],
@@ -356,7 +364,8 @@ export class SettingsPage {
 
   /**
    * Processes the Excel file chosen by the user for the import operation.
-   * Currently logs the parsed data to the console without persisting it.
+   * Auto-detects the format; when detection fails, shows a format picker.
+   * On parse error, shows an unsupported-format alert.
    *
    * @param event File input change event.
    */
@@ -370,17 +379,42 @@ export class SettingsPage {
         return;
       }
 
-      const result = await this.withLoader('Procesando…', () =>
-        this.externalEntryImportService.importFromExcel(file, 'falabella-cmr'),
-      );
-
-      console.debug('Data import result:', result);
+      let result: ImportResult;
+      try {
+        result = await this.withLoader('Procesando…', () =>
+          this.externalEntryImportService.importFromExcel(file),
+        );
+      } catch (error) {
+        if (error instanceof Error && error.message === FORMAT_DETECTION_FAILED) {
+          const selectedFormat = await this.showFormatPicker();
+          if (!selectedFormat) return;
+          try {
+            result = await this.withLoader('Procesando…', () =>
+              this.externalEntryImportService.importFromExcel(file, selectedFormat),
+            );
+          } catch {
+            await this.showUnsupportedFormatError();
+            return;
+          }
+        } else {
+          await this.showUnsupportedFormatError();
+          return;
+        }
+      }
 
       const existingEntries = this.entryService.getEntriesSnapshot();
       const mergeResult = this.externalEntryImportService.mergeWithExistingEntries(
         result.entries,
         existingEntries,
       );
+
+      const selfTransfers = this.externalEntryImportService.detectSelfTransfers(
+        mergeResult.readyToImport,
+        this.userInfoService.userInfo(),
+      );
+      if (selfTransfers.length > 0) {
+        mergeResult.selfTransfers = selfTransfers;
+      }
 
       this.currentMergeResult.set(mergeResult);
       this.isImportReviewOpen.set(true);
@@ -392,6 +426,59 @@ export class SettingsPage {
     } finally {
       this.resetXlsxFileInput();
     }
+  }
+
+  /**
+   * Presents a radio-button alert for the user to manually select the import format.
+   * Used as fallback when auto-detection fails.
+   *
+   * @returns The selected ImportFormat, or null if the user cancelled.
+   */
+  private async showFormatPicker(): Promise<ImportFormat | null> {
+    return new Promise<ImportFormat | null>(async (resolve) => {
+      const alert = await this.alertController.create({
+        header: 'Seleccionar formato',
+        message: 'No se pudo detectar el formato automáticamente. ¿Qué tipo de archivo estás importando?',
+        inputs: [
+          {
+            type: 'radio',
+            label: 'CMR Falabella',
+            value: 'falabella-cmr',
+          },
+          {
+            type: 'radio',
+            label: 'BICE — Cartola Provisoria',
+            value: 'bice-provisoria',
+          },
+          {
+            type: 'radio',
+            label: 'BICE — Cartola Definitiva',
+            value: 'bice-definitiva',
+          },
+        ],
+        buttons: [
+          {
+            text: 'Cancelar',
+            role: 'cancel',
+            handler: () => resolve(null),
+          },
+          {
+            text: 'Continuar',
+            handler: (selected: ImportFormat) => {
+              resolve(selected ?? null);
+            },
+          },
+        ],
+      });
+      await alert.present();
+    });
+  }
+
+  /**
+   * Opens the unsupported format error modal, listing the currently compatible formats.
+   */
+  private showUnsupportedFormatError(): void {
+    this.isUnsupportedFormatErrorOpen.set(true);
   }
 
   /**

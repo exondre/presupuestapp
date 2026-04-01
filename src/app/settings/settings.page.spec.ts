@@ -140,6 +140,7 @@ describe('SettingsPage', () => {
       'importFromExcel',
       'mergeWithExistingEntries',
       'toEntryCreation',
+      'detectSelfTransfers',
     ]);
     externalEntryImportServiceMock.importFromExcel.and.returnValue(
       Promise.resolve({ entries: [], totalRows: 0, skippedRows: 0 }),
@@ -150,6 +151,7 @@ describe('SettingsPage', () => {
       readyToImport: [],
     });
     externalEntryImportServiceMock.toEntryCreation.and.returnValue({} as any);
+    externalEntryImportServiceMock.detectSelfTransfers.and.returnValue([]);
 
     // --- AlertController ---
     alertControllerMock = jasmine.createSpyObj('AlertController', ['create']);
@@ -594,10 +596,10 @@ describe('SettingsPage', () => {
       expect(xlsxRef.nativeElement.value).toBe('');
     }));
 
-    it('should presentError on xlsx import failure', fakeAsync(() => {
+    it('should show unsupported format error on xlsx import failure', fakeAsync(() => {
       const xlsxRef = makeInputRef();
       (component as any).xlsxFileInput = xlsxRef;
-      spyOn<any>(component, 'presentError').and.returnValue(Promise.resolve());
+      spyOn<any>(component, 'showUnsupportedFormatError').and.returnValue(Promise.resolve());
 
       externalEntryImportServiceMock.importFromExcel.and.returnValue(
         Promise.reject(new Error('xlsx error')),
@@ -609,7 +611,7 @@ describe('SettingsPage', () => {
       (component as any).handleXlsxFileSelected(event);
       tick(1000);
 
-      expect((component as any).presentError).toHaveBeenCalled();
+      expect((component as any).showUnsupportedFormatError).toHaveBeenCalled();
       expect(xlsxRef.nativeElement.value).toBe('');
     }));
   });
