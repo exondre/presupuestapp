@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import readXlsxFile, { Row } from 'read-excel-file/browser';
 import { EntryCreation, EntryData, EntryRecurrenceCreation, EntryType, IdempotencyInfo } from '../models/entry-data.model';
+import { UserInfo } from '../models/user-info.model';
 
 /**
  * Represents a parsed entry from an external file import.
@@ -26,7 +27,7 @@ export interface InstallmentInfo {
 /**
  * Supported import formats for external files.
  */
-export type ImportFormat = 'falabella-cmr';
+export type ImportFormat = 'falabella-cmr' | 'bice-provisoria' | 'bice-definitiva';
 
 /**
  * Result of an import operation.
@@ -52,10 +53,30 @@ export interface MergeResult {
   exactDuplicates: ParsedEntry[];
   potentialDuplicates: PotentialDuplicate[];
   readyToImport: ParsedEntry[];
+  selfTransfers?: SelfTransferEntry[];
+}
+
+/**
+ * Result of attempting to auto-detect the import format from raw Excel rows.
+ * When format is null, detection failed and the caller should ask the user.
+ */
+export interface FormatDetectionResult {
+  format: ImportFormat | null;
+}
+
+/**
+ * A parsed entry flagged as a potential self-transfer between the user's own accounts.
+ */
+export interface SelfTransferEntry {
+  entry: ParsedEntry;
+  ignored: boolean;
 }
 
 /** Number of days of tolerance when comparing dates for fuzzy matching. */
 const DATE_TOLERANCE_DAYS = 3;
+
+/** Sentinel error message thrown when auto-detection fails. */
+export const FORMAT_DETECTION_FAILED = 'FORMAT_DETECTION_FAILED';
 
 /**
  * Service responsible for importing entries from external files.
@@ -65,28 +86,301 @@ const DATE_TOLERANCE_DAYS = 3;
   providedIn: 'root',
 })
 export class ExternalEntryImportService {
+  private static readonly SPANISH_MONTHS: Record<string, number> = {
+    ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+    jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11,
+  };
+
   /**
-   * Imports entries from an Excel file using the specified format.
+   * Imports entries from an Excel file, auto-detecting the format when not specified.
+   * Throws FORMAT_DETECTION_FAILED if the format cannot be determined automatically.
    *
    * @param file The Excel file to import.
-   * @param format The format to use for parsing (default: 'falabella-cmr').
+   * @param format Optional format override. When omitted, auto-detection is used.
    * @returns Promise with the import result containing parsed entries.
    */
-  async importFromExcel(file: File, format: ImportFormat = 'falabella-cmr'): Promise<ImportResult> {
+  async importFromExcel(file: File, format?: ImportFormat): Promise<ImportResult> {
     const rows = await readXlsxFile(file);
 
-    // Debug: log raw rows to see how read-excel-file delivers the data
-    console.log('Raw rows from Excel file:', rows);
-    // if (rows.length > 1) {
-    //   console.log('First data row sample:', rows[1]);
-    // }
+    const resolvedFormat = format ?? this.detectFormat(rows).format;
+    if (!resolvedFormat) {
+      throw new Error(FORMAT_DETECTION_FAILED);
+    }
 
-    switch (format) {
+    switch (resolvedFormat) {
       case 'falabella-cmr':
         return this.parseFalabellaCmrFormat(rows);
+      case 'bice-provisoria':
+        return this.parseBiceFormat(rows, 'provisoria');
+      case 'bice-definitiva':
+        return this.parseBiceFormat(rows, 'definitiva');
       default:
-        throw new Error(`Formato de importación no soportado: ${format}`);
+        throw new Error(`Formato de importación no soportado: ${resolvedFormat}`);
     }
+  }
+
+  /**
+   * Attempts to auto-detect the import format from the raw Excel rows.
+   * Returns { format: null } when detection is inconclusive.
+   *
+   * @param rows The rows read from the Excel file.
+   * @returns Detection result with the matched format or null.
+   */
+  detectFormat(rows: Row[]): FormatDetectionResult {
+    if (rows.length === 0) {
+      return { format: null };
+    }
+
+    // CMR Falabella: header row contains "Descripcion" AND ("Cuotas Pendientes" OR "Valor Cuota")
+    const firstRowCells = rows[0].map((cell) => String(cell ?? '').toLowerCase());
+    const hasDescripcion = firstRowCells.some((c) => c.includes('descripcion'));
+    const hasCuotas = firstRowCells.some((c) => c.includes('cuotas pendientes') || c.includes('valor cuota'));
+    if (hasDescripcion && hasCuotas) {
+      return { format: 'falabella-cmr' };
+    }
+
+    // BICE: look for "Abonos y cargos" section marker in first 45 rows
+    const scanLimit = Math.min(rows.length, 45);
+    let foundAbonosYCargos = false;
+    for (let i = 0; i < scanLimit; i++) {
+      const row = rows[i];
+      if (!row) continue;
+      const hasMarker = row.some((cell) => String(cell ?? '').toLowerCase().includes('abonos y cargos'));
+      if (hasMarker) {
+        foundAbonosYCargos = true;
+        break;
+      }
+    }
+
+    if (foundAbonosYCargos) {
+      // Differentiate by presence of "Saldos diarios" anywhere in the file
+      const hasSaldosDiarios = rows.some((row) =>
+        row?.some((cell) => String(cell ?? '').toLowerCase().includes('saldos diarios')),
+      );
+      return { format: hasSaldosDiarios ? 'bice-definitiva' : 'bice-provisoria' };
+    }
+
+    return { format: null };
+  }
+
+  /**
+   * Parses rows in BICE Cuenta Corriente format (both Provisoria and Definitiva variants).
+   * Locates the "Abonos y cargos" section dynamically and reads until an empty row or
+   * "Saldos diarios" is encountered.
+   *
+   * Column offsets:
+   * - Provisoria: Fecha(1), Categoría(2), Descripción(3), Monto(4)
+   * - Definitiva: Fecha(1), Categoría(2), Nº operación(3 — ignored), Descripción(4), Monto(5)
+   *
+   * @param rows The rows from the Excel file.
+   * @param variant Whether this is a 'provisoria' or 'definitiva' cartola.
+   * @returns Import result with parsed entries.
+   */
+  private parseBiceFormat(rows: Row[], variant: 'provisoria' | 'definitiva'): ImportResult {
+    // Find the "Abonos y cargos" section marker
+    let sectionStartRow = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row?.some((cell) => String(cell ?? '').toLowerCase().includes('abonos y cargos'))) {
+        sectionStartRow = i;
+        break;
+      }
+    }
+
+    if (sectionStartRow === -1) {
+      console.error('No se encontró la sección "Abonos y cargos" en el archivo BICE.');
+      return { entries: [], totalRows: 0, skippedRows: 0 };
+    }
+
+    const cols = variant === 'provisoria'
+      ? { fecha: 1, categoria: 2, descripcion: 3, monto: 4 }
+      : { fecha: 1, categoria: 2, descripcion: 4, monto: 5 };
+
+    const dataStartRow = sectionStartRow + 2; // skip section header + column header row
+    const entries: ParsedEntry[] = [];
+    let totalRows = 0;
+    let skippedRows = 0;
+
+    for (let i = dataStartRow; i < rows.length; i++) {
+      const row = rows[i];
+
+      // Stop on empty row or "Saldos diarios" marker
+      if (!row || row.every((cell) => cell == null)) break;
+      if (row.some((cell) => String(cell ?? '').toLowerCase().includes('saldos diarios'))) break;
+
+      totalRows++;
+
+      try {
+        const rawFecha = row[cols.fecha];
+        const rawCategoria = row[cols.categoria];
+        const rawDescripcion = row[cols.descripcion];
+        const rawMonto = row[cols.monto];
+
+        const transactionDate = this.parseSpanishDate(rawFecha);
+        if (!transactionDate) {
+          skippedRows++;
+          continue;
+        }
+
+        const categoriaStr = String(rawCategoria ?? '').toLowerCase();
+        let type: EntryType;
+        if (categoriaStr.includes('cargo')) {
+          type = EntryType.EXPENSE;
+        } else if (categoriaStr.includes('abono')) {
+          type = EntryType.INCOME;
+        } else {
+          skippedRows++;
+          continue;
+        }
+
+        const amount = Math.abs(this.parseAmount(rawMonto));
+        if (amount === 0) {
+          skippedRows++;
+          continue;
+        }
+
+        const displayDescription = String(rawDescripcion ?? '').trim();
+        const normalizedDescription = this.normalizeBiceDescription(displayDescription);
+
+        const entry: ParsedEntry = {
+          date: transactionDate,
+          description: displayDescription,
+          amount,
+          type,
+          idempotencyInfo: [this.generateIdempotencyInfo(transactionDate, normalizedDescription, amount, type)],
+        };
+
+        entries.push(entry);
+      } catch (parseError) {
+        console.error(`Error al parsear fila BICE ${i + 1}:`, parseError);
+        skippedRows++;
+      }
+    }
+
+    return { entries, totalRows, skippedRows };
+  }
+
+  /**
+   * Detects parsed entries that are likely self-transfers between the user's own accounts.
+   * Requires user info to be registered. Returns entries flagged as ignored by default.
+   *
+   * Detection heuristics (applied to lowercased description with dots removed):
+   * 1. User's RUT appears 2+ times → sender and recipient are the same person.
+   * 2. User's RUT appears once + description contains "abono por transferencia" +
+   *    at least 2 name parts match → inbound transfer from own account.
+   *
+   * @param entries The parsed entries to analyze.
+   * @param userInfo The registered user info, or null if not available.
+   * @returns Array of self-transfer entries, each ignored by default.
+   */
+  detectSelfTransfers(entries: ParsedEntry[], userInfo: UserInfo | null): SelfTransferEntry[] {
+    if (!userInfo) return [];
+
+    // Normalize RUT: remove all non-alphanumeric characters so that any stored
+    // format ("256819791", "25681979-1", "25.681.979-1") yields the same string
+    // for comparison (e.g. "256819791").
+    const normalizedRut = userInfo.idDocument.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    // Split name into parts of 2+ characters for partial matching
+    const nameParts = userInfo.fullName
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((p) => p.length >= 2);
+
+    const selfTransfers: SelfTransferEntry[] = [];
+
+    for (const entry of entries) {
+      if (this.isSelfTransfer(entry.description, normalizedRut, nameParts)) {
+        selfTransfers.push({ entry, ignored: true });
+      }
+    }
+
+    return selfTransfers;
+  }
+
+  /**
+   * Determines whether a transaction description corresponds to a self-transfer.
+   *
+   * @param description Raw entry description.
+   * @param normalizedRut User's RUT with all non-alphanumeric chars removed, lowercased.
+   * @param nameParts User's name split into lowercase parts.
+   * @returns True if the description matches self-transfer patterns.
+   */
+  private isSelfTransfer(description: string, normalizedRut: string, nameParts: string[]): boolean {
+    const descLower = description.toLowerCase();
+
+    // Strip all non-alphanumeric characters for RUT matching so that "25.681.979-1",
+    // "25681979-1" and "256819791" all compare equal against normalizedRut.
+    const descForRut = descLower.replace(/[^a-z0-9]/g, '');
+    const rutOccurrences = this.countOccurrences(descForRut, normalizedRut);
+
+    // Case 1: RUT appears 2+ times → user is both sender and recipient
+    if (rutOccurrences >= 2) return true;
+
+    // Case 2: Inbound transfer from own account
+    // ("abono por transferencia" + user's RUT + at least 2 name parts)
+    if (rutOccurrences === 1 && descLower.includes('abono por transferencia')) {
+      const nameMatchCount = nameParts.filter((part) => descLower.includes(part)).length;
+      if (nameMatchCount >= 2) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Counts non-overlapping occurrences of a substring within a string.
+   *
+   * @param haystack The string to search in.
+   * @param needle The substring to count.
+   * @returns Number of occurrences.
+   */
+  private countOccurrences(haystack: string, needle: string): number {
+    if (!needle) return 0;
+    let count = 0;
+    let pos = 0;
+    while ((pos = haystack.indexOf(needle, pos)) !== -1) {
+      count++;
+      pos += needle.length;
+    }
+    return count;
+  }
+
+  /**
+   * Parses a BICE date string in "DD MMM YYYY" Spanish format to an ISO string.
+   * Examples: "30 mar 2026", "2 feb 2026".
+   *
+   * @param rawDate The raw date value from the Excel cell.
+   * @returns ISO date string or null if parsing fails.
+   */
+  private parseSpanishDate(rawDate: unknown): string | null {
+    if (rawDate == null) return null;
+
+    const dateStr = String(rawDate).trim().toLowerCase();
+    const match = dateStr.match(
+      /^(\d{1,2})\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\s+(\d{4})$/,
+    );
+    if (!match) return null;
+
+    const [, day, monthAbbr, year] = match;
+    const monthIndex = ExternalEntryImportService.SPANISH_MONTHS[monthAbbr];
+    if (monthIndex === undefined) return null;
+
+    const date = new Date(Number(year), monthIndex, Number(day));
+    if (isNaN(date.getTime())) return null;
+
+    return date.toISOString();
+  }
+
+  /**
+   * Normalizes a BICE description for stable idempotency key generation.
+   * The raw description is preserved in the entry for display; this
+   * normalized form is used only for the idempotency key.
+   *
+   * @param rawDescription The raw display description.
+   * @returns Lowercased, whitespace-collapsed description.
+   */
+  private normalizeBiceDescription(rawDescription: string): string {
+    return rawDescription.trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
   /**

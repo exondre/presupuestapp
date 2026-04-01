@@ -46,21 +46,21 @@
 }
 
 .import-review-item__description {
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.import-review-item__details {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  font-size: 0.85rem;
-}
-
-.import-review-item__amount {
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 500;
   color: var(--ion-color-dark);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.import-review-item__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  margin: 0.15rem 0 0;
+  color: var(--ion-color-medium);
 }
 
 .import-review-item__date {
@@ -102,6 +102,23 @@
     margin: 0;
     font-size: 0.9rem;
   }
+}
+
+.import-review-section__subtitle {
+  p {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
+.import-review-item__amount--expense {
+  font-weight: 600;
+  color: var(--ion-color-danger);
+}
+
+.import-review-item__amount--income {
+  font-weight: 600;
+  color: var(--ion-color-success);
 }
 
 .import-review-footer {

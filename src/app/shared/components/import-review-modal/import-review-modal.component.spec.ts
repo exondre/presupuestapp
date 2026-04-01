@@ -9,6 +9,7 @@ import {
   MergeResult,
   ParsedEntry,
   PotentialDuplicate,
+  SelfTransferEntry,
 } from '../../services/external-entry-import.service';
 import { UtilsService } from '../../services/utils.service';
 import { EntryType } from '../../models/entry-data.model';
@@ -68,7 +69,12 @@ function buildMergeResult(overrides: Partial<MergeResult> = {}): MergeResult {
     exactDuplicates: overrides.exactDuplicates ?? [],
     potentialDuplicates: overrides.potentialDuplicates ?? [],
     readyToImport: overrides.readyToImport ?? [],
+    selfTransfers: overrides.selfTransfers,
   };
+}
+
+function buildSelfTransferEntry(entry?: ParsedEntry, ignored = true): SelfTransferEntry {
+  return { entry: entry ?? buildParsedEntry({ description: 'Auto-transferencia' }), ignored };
 }
 
 // ---------------------------------------------------------------------------
@@ -542,6 +548,138 @@ describe('ImportReviewModalComponent', () => {
 
       // The result contains at least letters (not only numbers)
       expect(/[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(result)).toBeTrue();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // selfTransfers — constructor effect + signals
+  // -------------------------------------------------------------------------
+
+  describe('selfTransfers', () => {
+    it('populates selfTransfers from mergeResult.selfTransfers', () => {
+      const st = buildSelfTransferEntry();
+      setupComponent(buildMergeResult({ selfTransfers: [st] }));
+
+      expect((component as any).selfTransfers()).toEqual([st]);
+    });
+
+    it('defaults selfTransfers to empty when mergeResult has no selfTransfers', () => {
+      setupComponent(buildMergeResult());
+
+      expect((component as any).selfTransfers()).toEqual([]);
+    });
+
+    it('selfTransferCount reflects length of selfTransfers', () => {
+      const st1 = buildSelfTransferEntry();
+      const st2 = buildSelfTransferEntry();
+      setupComponent(buildMergeResult({ selfTransfers: [st1, st2] }));
+
+      expect((component as any).selfTransferCount()).toBe(2);
+    });
+
+    it('ignoredSelfTransferCount counts only ignored entries', () => {
+      const ignored = buildSelfTransferEntry(undefined, true);
+      const included = buildSelfTransferEntry(buildParsedEntry({ description: 'Incluida' }), false);
+      setupComponent(buildMergeResult({ selfTransfers: [ignored, included] }));
+
+      expect((component as any).ignoredSelfTransferCount()).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // toggleSelfTransfer
+  // -------------------------------------------------------------------------
+
+  describe('toggleSelfTransfer()', () => {
+    it('toggles ignored from true to false', () => {
+      const st = buildSelfTransferEntry(undefined, true);
+      setupComponent(buildMergeResult({ selfTransfers: [st] }));
+
+      (component as any).toggleSelfTransfer((component as any).selfTransfers()[0]);
+
+      expect((component as any).selfTransfers()[0].ignored).toBeFalse();
+    });
+
+    it('toggles ignored from false to true', () => {
+      const st = buildSelfTransferEntry(undefined, false);
+      setupComponent(buildMergeResult({ selfTransfers: [st] }));
+
+      (component as any).toggleSelfTransfer((component as any).selfTransfers()[0]);
+
+      expect((component as any).selfTransfers()[0].ignored).toBeTrue();
+    });
+
+    it('only toggles the target entry, leaving others unchanged', () => {
+      const st1 = buildSelfTransferEntry(buildParsedEntry({ description: 'ST1' }), true);
+      const st2 = buildSelfTransferEntry(buildParsedEntry({ description: 'ST2' }), true);
+      setupComponent(buildMergeResult({ selfTransfers: [st1, st2] }));
+
+      (component as any).toggleSelfTransfer((component as any).selfTransfers()[0]);
+
+      expect((component as any).selfTransfers()[0].ignored).toBeFalse();
+      expect((component as any).selfTransfers()[1].ignored).toBeTrue();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // effectiveReadyCount
+  // -------------------------------------------------------------------------
+
+  describe('effectiveReadyCount', () => {
+    it('equals readyToImport length when no self-transfers', () => {
+      const r1 = buildParsedEntry({ description: 'R1' });
+      const r2 = buildParsedEntry({ description: 'R2' });
+      setupComponent(buildMergeResult({ readyToImport: [r1, r2] }));
+
+      expect((component as any).effectiveReadyCount()).toBe(2);
+    });
+
+    it('subtracts ignored self-transfers from readyToImport length', () => {
+      const entry = buildParsedEntry({ description: 'Auto' });
+      const st = buildSelfTransferEntry(entry, true);
+      setupComponent(buildMergeResult({ readyToImport: [entry], selfTransfers: [st] }));
+
+      expect((component as any).effectiveReadyCount()).toBe(0);
+    });
+
+    it('does not subtract included (non-ignored) self-transfers', () => {
+      const entry = buildParsedEntry({ description: 'Auto' });
+      const st = buildSelfTransferEntry(entry, false);
+      setupComponent(buildMergeResult({ readyToImport: [entry], selfTransfers: [st] }));
+
+      expect((component as any).effectiveReadyCount()).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // confirmImport with self-transfers
+  // -------------------------------------------------------------------------
+
+  describe('confirmImport() with self-transfers', () => {
+    it('excludes ignored self-transfer entries from entriesToImport', () => {
+      const normalEntry = buildParsedEntry({ description: 'Normal' });
+      const stEntry = buildParsedEntry({ description: 'Auto' });
+      const st = buildSelfTransferEntry(stEntry, true);
+      setupComponent(buildMergeResult({ readyToImport: [normalEntry, stEntry], selfTransfers: [st] }));
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+
+      (component as any).confirmImport();
+
+      const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
+      expect(payload.entriesToImport).toContain(normalEntry);
+      expect(payload.entriesToImport).not.toContain(stEntry);
+    });
+
+    it('includes self-transfer entries that are not ignored', () => {
+      const stEntry = buildParsedEntry({ description: 'Auto incluida' });
+      const st = buildSelfTransferEntry(stEntry, false);
+      setupComponent(buildMergeResult({ readyToImport: [stEntry], selfTransfers: [st] }));
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+
+      (component as any).confirmImport();
+
+      const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
+      expect(payload.entriesToImport).toContain(stEntry);
     });
   });
 

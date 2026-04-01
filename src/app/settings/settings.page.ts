@@ -11,12 +11,14 @@ import {
   AlertController,
   IonAvatar,
   IonButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
   IonItem,
   IonLabel,
   IonList,
+  IonModal,
   IonSpinner,
   IonText,
   IonTitle,
@@ -34,6 +36,7 @@ import {
   cloudUploadOutline,
   documentOutline,
   logoGoogle,
+  personOutline,
   syncOutline,
   warningOutline,
 } from 'ionicons/icons';
@@ -44,12 +47,18 @@ import { environment } from '../../environments/environment';
 import { EntrySyncService } from '../shared/services/entry-sync.service';
 import {
   ExternalEntryImportService,
+  FORMAT_DETECTION_FAILED,
+  ImportFormat,
+  ImportResult,
   MergeResult,
 } from '../shared/services/external-entry-import.service';
 import {
   ImportConfirmation,
   ImportReviewModalComponent,
 } from '../shared/components/import-review-modal/import-review-modal.component';
+import { UserInfoPromptModalComponent } from '../shared/components/user-info-prompt-modal/user-info-prompt-modal.component';
+import { UserInfoService } from '../shared/services/user-info.service';
+import { UserInfo } from '../shared/models/user-info.model';
 
 /**
  * Provides application settings such as data import and export utilities.
@@ -74,7 +83,10 @@ import {
     IonButton,
     IonSpinner,
     IonText,
+    IonModal,
+    IonButtons,
     ImportReviewModalComponent,
+    UserInfoPromptModalComponent,
   ],
 })
 export class SettingsPage {
@@ -102,6 +114,8 @@ export class SettingsPage {
 
   private readonly externalEntryImportService = inject(ExternalEntryImportService);
 
+  private readonly userInfoService = inject(UserInfoService);
+
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly shouldShowAuthDebugInfo = environment.features.authDebugInfo;
@@ -114,7 +128,12 @@ export class SettingsPage {
   protected readonly isSigningOut = computed(() => this.authStatus() === 'signing-out');
   protected isSyncing = false;
 
+  protected readonly userInfo = this.userInfoService.userInfo;
+  protected readonly hasUserInfo = this.userInfoService.hasUserInfo;
+  protected readonly isUserInfoFormOpen = signal(false);
+
   protected readonly isImportReviewOpen = signal(false);
+  protected readonly isUnsupportedFormatErrorOpen = signal(false);
   protected readonly currentMergeResult = signal<MergeResult>({
     exactDuplicates: [],
     potentialDuplicates: [],
@@ -131,6 +150,7 @@ export class SettingsPage {
       'sync-outline': syncOutline,
       'bug-outline': bugOutline,
       'close-circle-outline': closeCircleOutline,
+      'person-outline': personOutline,
     });
 
     this.firebaseAuthService.status$
@@ -151,6 +171,30 @@ export class SettingsPage {
         const warningMessage = 'Tu sesión con Google se cerró inesperadamente. Inicia sesión nuevamente si lo necesitas.';
         void this.presentToast(warningMessage, 'warning');
       });
+  }
+
+  /**
+   * Opens the user info form modal for editing.
+   */
+  protected handleEditUserInfo(): void {
+    this.isUserInfoFormOpen.set(true);
+  }
+
+  /**
+   * Saves the user info and closes the form modal.
+   *
+   * @param info The user info entered in the form.
+   */
+  protected handleUserInfoSaved(info: UserInfo): void {
+    this.userInfoService.saveUserInfo(info);
+    this.isUserInfoFormOpen.set(false);
+  }
+
+  /**
+   * Closes the user info form modal.
+   */
+  protected handleUserInfoFormDismissed(): void {
+    this.isUserInfoFormOpen.set(false);
   }
 
   /**
@@ -320,7 +364,8 @@ export class SettingsPage {
 
   /**
    * Processes the Excel file chosen by the user for the import operation.
-   * Currently logs the parsed data to the console without persisting it.
+   * Auto-detects the format; when detection fails, shows a format picker.
+   * On parse error, shows an unsupported-format alert.
    *
    * @param event File input change event.
    */
@@ -334,17 +379,42 @@ export class SettingsPage {
         return;
       }
 
-      const result = await this.withLoader('Procesando…', () =>
-        this.externalEntryImportService.importFromExcel(file, 'falabella-cmr'),
-      );
-
-      console.debug('Data import result:', result);
+      let result: ImportResult;
+      try {
+        result = await this.withLoader('Procesando…', () =>
+          this.externalEntryImportService.importFromExcel(file),
+        );
+      } catch (error) {
+        if (error instanceof Error && error.message === FORMAT_DETECTION_FAILED) {
+          const selectedFormat = await this.showFormatPicker();
+          if (!selectedFormat) return;
+          try {
+            result = await this.withLoader('Procesando…', () =>
+              this.externalEntryImportService.importFromExcel(file, selectedFormat),
+            );
+          } catch {
+            await this.showUnsupportedFormatError();
+            return;
+          }
+        } else {
+          await this.showUnsupportedFormatError();
+          return;
+        }
+      }
 
       const existingEntries = this.entryService.getEntriesSnapshot();
       const mergeResult = this.externalEntryImportService.mergeWithExistingEntries(
         result.entries,
         existingEntries,
       );
+
+      const selfTransfers = this.externalEntryImportService.detectSelfTransfers(
+        mergeResult.readyToImport,
+        this.userInfoService.userInfo(),
+      );
+      if (selfTransfers.length > 0) {
+        mergeResult.selfTransfers = selfTransfers;
+      }
 
       this.currentMergeResult.set(mergeResult);
       this.isImportReviewOpen.set(true);
@@ -356,6 +426,59 @@ export class SettingsPage {
     } finally {
       this.resetXlsxFileInput();
     }
+  }
+
+  /**
+   * Presents a radio-button alert for the user to manually select the import format.
+   * Used as fallback when auto-detection fails.
+   *
+   * @returns The selected ImportFormat, or null if the user cancelled.
+   */
+  private async showFormatPicker(): Promise<ImportFormat | null> {
+    return new Promise<ImportFormat | null>(async (resolve) => {
+      const alert = await this.alertController.create({
+        header: 'Seleccionar formato',
+        message: 'No se pudo detectar el formato automáticamente. ¿Qué tipo de archivo estás importando?',
+        inputs: [
+          {
+            type: 'radio',
+            label: 'CMR Falabella',
+            value: 'falabella-cmr',
+          },
+          {
+            type: 'radio',
+            label: 'BICE — Cartola Provisoria',
+            value: 'bice-provisoria',
+          },
+          {
+            type: 'radio',
+            label: 'BICE — Cartola Definitiva',
+            value: 'bice-definitiva',
+          },
+        ],
+        buttons: [
+          {
+            text: 'Cancelar',
+            role: 'cancel',
+            handler: () => resolve(null),
+          },
+          {
+            text: 'Continuar',
+            handler: (selected: ImportFormat) => {
+              resolve(selected ?? null);
+            },
+          },
+        ],
+      });
+      await alert.present();
+    });
+  }
+
+  /**
+   * Opens the unsupported format error modal, listing the currently compatible formats.
+   */
+  private showUnsupportedFormatError(): void {
+    this.isUnsupportedFormatErrorOpen.set(true);
   }
 
   /**

@@ -1,0 +1,121 @@
+<ion-modal
+  [isOpen]="isOpen()"
+  (didDismiss)="onDidDismiss()"
+>
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        @if (viewState() === 'form' && !initialData() && !startInFormMode()) {
+          <ion-buttons slot="start">
+            <ion-button fill="clear" color="medium" (click)="goBackToPrompt()">
+              Volver
+            </ion-button>
+          </ion-buttons>
+        }
+        <ion-title>Datos personales</ion-title>
+        @if (viewState() === 'form' && (initialData() || startInFormMode())) {
+          <ion-buttons slot="end">
+            <ion-button fill="clear" color="medium" (click)="onDidDismiss()">
+              Cerrar
+            </ion-button>
+          </ion-buttons>
+        }
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="user-info-content">
+      @if (viewState() === 'prompt') {
+        <div class="user-info-prompt">
+          <div class="user-info-prompt__hero">
+            <div class="user-info-prompt__icon-wrapper">
+              <ion-icon name="shield-checkmark-outline"></ion-icon>
+            </div>
+            <h2 class="user-info-prompt__title">Completa tu perfil</h2>
+          </div>
+
+          <div class="user-info-prompt__disclaimer">
+            <p>
+              Estos datos se almacenan <strong>exclusivamente en tu dispositivo</strong>
+              para procesar extractos bancarios importados. Nunca se suben a internet
+              y el desarrollador no tiene acceso a ellos.
+            </p>
+          </div>
+
+          <div class="user-info-prompt__actions">
+            <ion-button
+              expand="block"
+              color="primary"
+              (click)="goToForm()"
+            >
+              Ingresar datos
+            </ion-button>
+            <ion-button
+              expand="block"
+              fill="outline"
+              color="medium"
+              (click)="handleRemindLater()"
+            >
+              Recordármelo más tarde
+            </ion-button>
+            <ion-button
+              expand="block"
+              fill="clear"
+              color="medium"
+              class="user-info-prompt__dismiss-btn"
+              (click)="handleDontAskAgain()"
+            >
+              No volver a preguntar
+            </ion-button>
+          </div>
+        </div>
+      }
+
+      @if (viewState() === 'form') {
+        <div class="user-info-form">
+          <form [formGroup]="form" (ngSubmit)="handleSave()">
+            <ion-list lines="full" class="user-info-form__list">
+              <ion-item>
+                <ion-input
+                  label="Nombre completo"
+                  labelPlacement="stacked"
+                  placeholder="Ej: Juan Andrés Pérez Silva"
+                  formControlName="fullName"
+                  type="text"
+                  autocapitalize="words"
+                ></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-input
+                  label="Documento de identificación"
+                  labelPlacement="stacked"
+                  placeholder="Ej: 12.345.678-9"
+                  formControlName="idDocument"
+                  type="text"
+                ></ion-input>
+              </ion-item>
+            </ion-list>
+
+            <div class="user-info-form__disclaimer">
+              <ion-icon name="lock-closed-outline"></ion-icon>
+              <p>
+                Estos datos se almacenan exclusivamente en tu dispositivo. Nunca se
+                suben a internet y el desarrollador no tiene acceso a ellos.
+              </p>
+            </div>
+
+            <div class="user-info-form__actions">
+              <ion-button
+                expand="block"
+                color="primary"
+                type="submit"
+                [disabled]="form.invalid"
+              >
+                Guardar
+              </ion-button>
+            </div>
+          </form>
+        </div>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>
