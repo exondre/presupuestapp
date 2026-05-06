@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -28,13 +28,12 @@ import { UtilsService } from '../shared/services/utils.service';
     IonHeader,
     IonTitle,
     IonToolbar,
-    CommonModule,
     FormsModule,
     IonList,
     IonItem,
     IonLabel,
-    IonIcon,
-  ],
+    IonIcon
+],
 })
 export class HistoryPage {
   private readonly entryService = inject(EntryService);
