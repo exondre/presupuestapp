@@ -206,6 +206,34 @@ describe('BalancePage', () => {
       const displayed = (component as any).displayedEntries() as EntryData[];
       expect(displayed.length).toBe(1);
     });
+
+    it('should match formatted amount when the search term omits thousands separators', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'e1', amount: 17000 }),
+        buildEntry({ id: 'e2', amount: 7000 }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('17000');
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed.length).toBe(1);
+      expect(displayed[0].id).toBe('e1');
+    });
+
+    it('should match formatted amount when the search term includes thousands separators', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'e1', amount: 17000 }),
+        buildEntry({ id: 'e2', amount: 7000 }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('17.000');
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed.length).toBe(1);
+      expect(displayed[0].id).toBe('e1');
+    });
   });
 
   // ── Search filtering by date ──
@@ -298,7 +326,7 @@ describe('BalancePage', () => {
   // ── Search context — Balance tab vs History detail ──
 
   describe('search context', () => {
-    it('should search all entries when no reference month is set (Balance tab)', () => {
+    it('should search only visible entries when no reference month is set (Balance tab)', () => {
       entryServiceMock.entriesSignal.set([
         buildEntry({ id: 'e1', date: '2026-01-15T10:00:00.000Z', description: 'Almuerzo enero' }),
         buildEntry({ id: 'e2', date: '2026-03-15T10:00:00.000Z', description: 'Almuerzo marzo' }),
@@ -306,6 +334,21 @@ describe('BalancePage', () => {
       fixture.detectChanges();
 
       (component as any).searchTerm.set('almuerzo');
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed.length).toBe(1);
+      expect(displayed[0].id).toBe('e2');
+    });
+
+    it('should search all entries after explicit search expansion', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'e1', date: '2026-01-15T10:00:00.000Z', description: 'Almuerzo enero' }),
+        buildEntry({ id: 'e2', date: '2026-03-15T10:00:00.000Z', description: 'Almuerzo marzo' }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('almuerzo');
+      (component as any).expandSearchToAllMovements();
 
       const displayed = (component as any).displayedEntries() as EntryData[];
       expect(displayed.length).toBe(2);
@@ -335,6 +378,171 @@ describe('BalancePage', () => {
       const displayed = (component as any).displayedEntries() as EntryData[];
       expect(displayed.length).toBe(1);
       expect(displayed[0].id).toBe('march-1');
+    });
+  });
+
+  // ── Visible movement window ──
+
+  describe('visible movement window', () => {
+    it('should show only current month entries by default in Balance tab', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'feb', date: '2026-02-28T10:00:00.000Z' }),
+        buildEntry({ id: 'mar', date: '2026-03-15T10:00:00.000Z' }),
+        buildEntry({ id: 'apr', date: '2026-04-01T10:00:00.000Z' }),
+      ]);
+      fixture.detectChanges();
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed.map((entry) => entry.id)).toEqual(['mar']);
+    });
+
+    it('should include the previous month tail when the current Chilean day is below five', () => {
+      jasmine.clock().mockDate(new Date('2026-03-03T15:00:00.000Z'));
+      component.setReferenceMonth(null);
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'old-feb', date: '2026-02-23T10:00:00.000Z' }),
+        buildEntry({ id: 'tail-feb', date: '2026-02-25T10:00:00.000Z' }),
+        buildEntry({ id: 'mar', date: '2026-03-01T10:00:00.000Z' }),
+      ]);
+      fixture.detectChanges();
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed.map((entry) => entry.id)).toEqual(['tail-feb', 'mar']);
+    });
+
+    it('should reveal five more previous days when loading more movements', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'older-feb', date: '2026-02-23T10:00:00.000Z' }),
+        buildEntry({ id: 'recent-feb', date: '2026-02-27T10:00:00.000Z' }),
+        buildEntry({ id: 'mar', date: '2026-03-15T10:00:00.000Z' }),
+      ]);
+      fixture.detectChanges();
+
+      expect(((component as any).displayedEntries() as EntryData[]).map((entry) => entry.id)).toEqual(['mar']);
+
+      (component as any).loadMoreMovements();
+
+      expect(((component as any).displayedEntries() as EntryData[]).map((entry) => entry.id)).toEqual([
+        'recent-feb',
+        'mar',
+      ]);
+    });
+
+    it('should report more movements only when older entries exist', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'feb', date: '2026-02-27T10:00:00.000Z' }),
+        buildEntry({ id: 'mar', date: '2026-03-15T10:00:00.000Z' }),
+      ]);
+      fixture.detectChanges();
+
+      expect((component as any).hasMoreMovements()).toBeTrue();
+
+      (component as any).loadMoreMovements();
+
+      expect((component as any).hasMoreMovements()).toBeFalse();
+    });
+
+    it('should not apply the visible window when a reference month is set', () => {
+      const febEntry = buildEntry({ id: 'feb', date: '2026-02-15T10:00:00.000Z' });
+      entryServiceMock.filterEntriesByMonth.and.returnValue([febEntry]);
+
+      component.setReferenceMonth(new Date(2026, 1, 1));
+      fixture.detectChanges();
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed).toEqual([febEntry]);
+    });
+  });
+
+  // ── Global search pagination ──
+
+  describe('global search pagination', () => {
+    it('should limit rendered results when global search has many matches', () => {
+      const entries = Array.from({ length: 55 }, (_value, index) =>
+        buildEntry({
+          id: `old-${index}`,
+          date: '2026-01-15T10:00:00.000Z',
+          description: 'Supermercado antiguo',
+        }),
+      );
+      entryServiceMock.entriesSignal.set(entries);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('supermercado');
+      (component as any).expandSearchToAllMovements();
+
+      expect(((component as any).displayedEntries() as EntryData[]).length).toBe(50);
+      expect((component as any).globalSearchMatchesCount()).toBe(55);
+      expect((component as any).hasMoreGlobalSearchResults()).toBeTrue();
+    });
+
+    it('should increase the rendered global search result limit', () => {
+      const entries = Array.from({ length: 55 }, (_value, index) =>
+        buildEntry({
+          id: `old-${index}`,
+          date: '2026-01-15T10:00:00.000Z',
+          description: 'Supermercado antiguo',
+        }),
+      );
+      entryServiceMock.entriesSignal.set(entries);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('supermercado');
+      (component as any).expandSearchToAllMovements();
+      (component as any).loadMoreSearchResults();
+
+      expect(((component as any).displayedEntries() as EntryData[]).length).toBe(55);
+      expect((component as any).hasMoreGlobalSearchResults()).toBeFalse();
+    });
+
+    it('should reset global search mode when the search term changes', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'old', date: '2026-01-15T10:00:00.000Z', description: 'Supermercado antiguo' }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('supermercado');
+      (component as any).expandSearchToAllMovements();
+
+      expect((component as any).searchScope()).toBe('all');
+
+      (component as any).handleSearchTermChange('super');
+
+      expect((component as any).searchScope()).toBe('visible');
+    });
+
+    it('should render the newest global search matches first before applying the limit', () => {
+      const entries = Array.from({ length: 55 }, (_value, index) => {
+        const date = new Date(Date.UTC(2026, 0, index + 1, 10));
+
+        return buildEntry({
+          id: `match-${index}`,
+          date: date.toISOString(),
+          description: 'Supermercado antiguo',
+        });
+      });
+      entryServiceMock.entriesSignal.set(entries);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('supermercado');
+      (component as any).expandSearchToAllMovements();
+
+      const displayed = (component as any).displayedEntries() as EntryData[];
+      expect(displayed.length).toBe(50);
+      expect(displayed[0].id).toBe('match-54');
+      expect(displayed[49].id).toBe('match-5');
+    });
+
+    it('should offer global search only when outside entries match the current term', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'old', date: '2026-01-15T10:00:00.000Z', description: 'Arriendo' }),
+        buildEntry({ id: 'visible', date: '2026-03-15T10:00:00.000Z', description: 'Supermercado' }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('supermercado');
+
+      expect((component as any).canExpandSearchToAll()).toBeFalse();
     });
   });
 
@@ -467,6 +675,44 @@ describe('BalancePage', () => {
         'app-balance-item',
       );
       expect(items.length).toBe(1);
+    });
+
+    it('should render the global search CTA as a clear button when visible search has no results', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'old', date: '2026-01-15T10:00:00.000Z', description: 'Lider' }),
+        buildEntry({ id: 'visible', date: '2026-03-15T10:00:00.000Z', description: 'Transporte' }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('lider');
+      fixture.detectChanges();
+
+      const button = Array.from(
+        fixture.nativeElement.querySelectorAll('ion-button'),
+      ).find((candidate) =>
+        (candidate as HTMLElement).textContent?.includes('Buscar en todos los movimientos'),
+      ) as HTMLElement | undefined;
+
+      expect(button?.getAttribute('fill')).toBe('clear');
+    });
+
+    it('should render the global search CTA as a clear button when visible search has results', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ id: 'old', date: '2026-01-15T10:00:00.000Z', description: 'Lider' }),
+        buildEntry({ id: 'visible', date: '2026-03-15T10:00:00.000Z', description: 'Lider' }),
+      ]);
+      fixture.detectChanges();
+
+      (component as any).searchTerm.set('lider');
+      fixture.detectChanges();
+
+      const button = Array.from(
+        fixture.nativeElement.querySelectorAll('ion-button'),
+      ).find((candidate) =>
+        (candidate as HTMLElement).textContent?.includes('Buscar en todos los movimientos'),
+      ) as HTMLElement | undefined;
+
+      expect(button?.getAttribute('fill')).toBe('clear');
     });
   });
 

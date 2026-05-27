@@ -25,12 +25,14 @@
     (searchCleared)="handleSearchCleared()"
   ></app-pull-to-search>
 
-  @if (!searchActive() && groups().length === 0) {
+  @if (!searchActive() && groups().length === 0 && !hasMoreMovements()) {
     <div class="empty-state">
       <ion-icon name="wallet-outline" class="empty-state__icon" aria-hidden="true"></ion-icon>
-      <p class="empty-state__title">Aún no registras transacciones</p>
+      <p class="empty-state__title">
+        {{ hasStoredEntries() ? 'No hay transacciones visibles' : 'Aún no registras transacciones' }}
+      </p>
       <p class="empty-state__subtitle">
-        Cuando agregues transacciones aparecerán aquí.
+        {{ hasStoredEntries() ? 'Usa la búsqueda para revisar otros movimientos.' : 'Cuando agregues transacciones aparecerán aquí.' }}
       </p>
       <ion-button class="empty-state__cta" fill="outline" (click)="openEntryModal(null)">
         Agregar transacción
@@ -43,6 +45,15 @@
       <p class="empty-state__subtitle">
         No se encontraron transacciones para esta búsqueda.
       </p>
+      @if (canExpandSearchToAll()) {
+        <ion-button
+          fill="clear"
+          expand="block"
+          (click)="expandSearchToAllMovements()"
+        >
+          Buscar en todos los movimientos
+        </ion-button>
+      }
     </div>
   } @else {
     @if (!searchActive()) {
@@ -149,6 +160,46 @@
               ></app-balance-item>
             }
           </ion-item-group>
+        }
+
+        @if (searchActive() && canExpandSearchToAll()) {
+          <div class="balance-list-action">
+            <p class="balance-list-action__hint">¿No encuentras el movimiento?</p>
+            <ion-button
+              fill="clear"
+              expand="block"
+              (click)="expandSearchToAllMovements()"
+            >
+              Buscar en todos los movimientos
+            </ion-button>
+          </div>
+        }
+
+        @if (searchActive() && searchResultsStatusLabel()) {
+          <div class="balance-list-action balance-list-action--search-results">
+            <p class="balance-list-action__hint">{{ searchResultsStatusLabel() }}</p>
+            @if (hasMoreGlobalSearchResults()) {
+              <ion-button
+                fill="clear"
+                expand="block"
+                (click)="loadMoreSearchResults()"
+              >
+                Ver más resultados
+              </ion-button>
+            }
+          </div>
+        }
+
+        @if (hasMoreMovements()) {
+          <div class="balance-list-action">
+            <ion-button
+              fill="clear"
+              expand="block"
+              (click)="loadMoreMovements()"
+            >
+              Ver más movimientos...
+            </ion-button>
+          </div>
         }
     </ion-list>
   }
