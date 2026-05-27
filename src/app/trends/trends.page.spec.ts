@@ -189,6 +189,32 @@ describe('TrendsPage', () => {
       expect(selectedEl.getAttribute('aria-pressed')).toBe('true');
     });
 
+    it('centers the current month in the chart on first render with data', () => {
+      entryServiceMock.entriesSignal.set([
+        buildEntry({ type: EntryType.INCOME, amount: 100000 }),
+      ]);
+      fixture.detectChanges();
+
+      const chartScrollEl = fixture.nativeElement.querySelector('.trends-chart-scroll') as HTMLElement;
+      const currentMonthEl = chartScrollEl.querySelector('.trends-month--current') as HTMLElement;
+      const scrollToSpy = spyOn(chartScrollEl, 'scrollTo');
+      Object.defineProperty(chartScrollEl, 'clientWidth', { value: 200, configurable: true });
+      Object.defineProperty(currentMonthEl, 'offsetLeft', { value: 180, configurable: true });
+      Object.defineProperty(currentMonthEl, 'offsetWidth', { value: 40, configurable: true });
+      spyOn(window, 'requestAnimationFrame').and.callFake((callback: FrameRequestCallback): number => {
+        callback(0);
+        return 1;
+      });
+
+      component['initialChartScrollFrameId'] = null;
+      component['scheduleInitialChartScroll']();
+
+      expect(scrollToSpy).toHaveBeenCalledTimes(1);
+      const scrollOptions = scrollToSpy.calls.mostRecent().args[0] as ScrollToOptions;
+      expect(scrollOptions.left).toBe(100);
+      expect(scrollOptions.behavior).toBe('auto');
+    });
+
     it('clicking a month bar changes selection', () => {
       entryServiceMock.entriesSignal.set([
         buildEntry({ type: EntryType.INCOME, amount: 100000 }),

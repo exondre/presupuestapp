@@ -15,6 +15,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:cov": "ng test --no-watch --code-coverage",
+    "test:local": "ng test --no-watch --browsers=Chrome",
     "lint": "ng lint"
   },
   "private": true,

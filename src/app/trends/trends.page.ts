@@ -1,4 +1,13 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  ViewChild,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   IonContent,
   IonHeader,
@@ -42,25 +51,52 @@ const SHORT_YEAR_FORMATTER = new Intl.DateTimeFormat('es-CL', {
     IonIcon,
   ],
 })
-export class TrendsPage {
+export class TrendsPage implements AfterViewInit {
   private readonly entryService = inject(EntryService);
   private readonly utilsService = inject(UtilsService);
+
+  @ViewChild('chartScroll')
+  private chartScroll?: ElementRef<HTMLElement>;
+
+  private hasInitializedView = false;
+  private hasPositionedInitialChartScroll = false;
+  private initialChartScrollFrameId: number | null = null;
 
   /** Currently selected month key for the detail panel. */
   protected readonly selectedMonthKey = signal<string>(buildMonthKey(new Date()));
 
   constructor() {
     addIcons({ 'trending-up-outline': trendingUpOutline });
+
+    effect(() => {
+      const data = this.trendsData();
+      if (data.maxAmount <= 0) return;
+
+      this.scheduleInitialChartScroll();
+    });
+  }
+
+  /**
+   * Starts the one-time initial chart positioning once Angular has rendered the view.
+   */
+  ngAfterViewInit(): void {
+    this.hasInitializedView = true;
+    this.scheduleInitialChartScroll();
   }
 
   /** Computed trends chart data, reacts to entry changes. */
   protected readonly trendsData = computed((): TrendsChartData => {
     const now = new Date();
-    const monthDates = [
-      new Date(now.getFullYear(), now.getMonth() - 2, 1),
-      new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      now,
-    ];
+    const previousMonthsCount = now.getMonth();
+    const monthDates = previousMonthsCount <= 1
+      ? [
+        new Date(now.getFullYear(), now.getMonth() - 2, 1),
+        new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        new Date(now.getFullYear(), now.getMonth(), 1),
+      ]
+      : Array.from({ length: previousMonthsCount + 1 }, (_, index) => (
+        new Date(now.getFullYear(), index, 1)
+      ));
     const monthEntriesMap = new Map<string, EntryData[]>();
     for (const date of monthDates) {
       const entries = this.entryService.filterEntriesByMonth(date);
@@ -141,5 +177,44 @@ export class TrendsPage {
     const m = SHORT_MONTH_FORMATTER.format(date).replace('.', '');
     const y = SHORT_YEAR_FORMATTER.format(date);
     return `${m} ${y}`;
+  }
+
+  /**
+   * Schedules the initial chart scroll when the chart exists and contains data.
+   */
+  private scheduleInitialChartScroll(): void {
+    if (
+      !this.hasInitializedView ||
+      this.hasPositionedInitialChartScroll ||
+      this.initialChartScrollFrameId !== null ||
+      !this.hasData()
+    ) {
+      return;
+    }
+
+    this.initialChartScrollFrameId = window.requestAnimationFrame(() => {
+      this.initialChartScrollFrameId = null;
+      this.positionInitialChartScroll();
+    });
+  }
+
+  /**
+   * Centers the current month in the horizontal chart on the first component render.
+   */
+  private positionInitialChartScroll(): void {
+    if (this.hasPositionedInitialChartScroll) return;
+
+    const chartScrollEl = this.chartScroll?.nativeElement;
+    const currentMonthEl = chartScrollEl?.querySelector<HTMLElement>('.trends-month--current');
+    if (!chartScrollEl || !currentMonthEl) return;
+
+    const targetLeft = currentMonthEl.offsetLeft
+      - ((chartScrollEl.clientWidth - currentMonthEl.offsetWidth) / 2);
+
+    chartScrollEl.scrollTo({
+      left: Math.max(0, targetLeft),
+      behavior: 'auto',
+    });
+    this.hasPositionedInitialChartScroll = true;
   }
 }
