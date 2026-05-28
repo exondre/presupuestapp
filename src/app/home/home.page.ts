@@ -2,14 +2,11 @@ import { Component, ViewChild, computed, inject } from '@angular/core';
 import {
   IonButton,
   IonContent,
-  IonIcon,
   IonItem,
-  IonLabel,
   IonList,
   NavController,
 } from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { repeatOutline } from 'ionicons/icons';
+import { EntryRecordComponent, EntryRecordViewModel } from '../shared/components/entry-record/entry-record.component';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import {
   EntryCreation,
@@ -20,10 +17,8 @@ import { EntryService } from '../shared/services/entry.service';
 import { UtilsService } from '../shared/services/utils.service';
 import { resolveInstallmentDisplayDetailsFromEntry } from '../shared/utils/recurrence-installment-display.util';
 
-interface HomeRecentEntryViewModel extends EntryData {
+interface HomeRecentEntryViewModel extends EntryRecordViewModel {
   dateLabel: string;
-  installmentLabel?: string;
-  isRecurring: boolean;
 }
 
 @Component({
@@ -35,8 +30,7 @@ interface HomeRecentEntryViewModel extends EntryData {
     IonButton,
     IonList,
     IonItem,
-    IonLabel,
-    IonIcon,
+    EntryRecordComponent,
     NewEntryModalComponent,
   ],
 })
@@ -56,14 +50,6 @@ export class HomePage {
     hour: '2-digit',
     minute: '2-digit',
   });
-
-  protected readonly entryType = EntryType;
-
-  constructor() {
-    addIcons({
-      'repeat-outline': repeatOutline,
-    });
-  }
 
   /** Localized label for the current month (e.g. "marzo 2026"). */
   protected readonly currentMonthLabel = computed(() => {
@@ -116,16 +102,6 @@ export class HomePage {
   });
 
   /**
-   * Formats an entry amount using the shared utility.
-   *
-   * @param entry The entry whose amount should be formatted.
-   * @returns The formatted amount string.
-   */
-  protected formatEntryAmount(entry: EntryData): string {
-    return this.utilsService.formatAmount(entry.amount);
-  }
-
-  /**
    * Builds the view model used to render a recent entry row.
    *
    * @param entry Entry to transform.
@@ -133,11 +109,24 @@ export class HomePage {
    */
   private buildRecentEntryViewModel(entry: EntryData): HomeRecentEntryViewModel {
     return {
-      ...entry,
+      id: entry.id,
+      amountLabel: this.utilsService.formatAmount(entry.amount),
+      description: this.resolveDescription(entry.description),
       dateLabel: this.formatRecentDate(entry.date),
       installmentLabel: resolveInstallmentDisplayDetailsFromEntry(entry)?.installmentLabel,
+      type: entry.type,
       isRecurring: entry.recurrence?.frequency === 'monthly',
     };
+  }
+
+  /**
+   * Resolves the fallback description shown for entries without text.
+   *
+   * @param description Optional entry description.
+   * @returns A display-safe description.
+   */
+  private resolveDescription(description: string | undefined): string {
+    return description?.trim() || 'Sin descripción';
   }
 
   /**

@@ -6,24 +6,17 @@ import {
   IonItemOptions,
   IonItemSliding,
   IonItemSliding as IonItemSlidingElement,
-  IonLabel,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { arrowUpCircleOutline, createOutline, repeatOutline, trashOutline } from 'ionicons/icons';
-import { EntryType } from '../shared/models/entry-data.model';
+import { createOutline, trashOutline } from 'ionicons/icons';
+import { EntryRecordComponent, EntryRecordViewModel } from '../shared/components/entry-record/entry-record.component';
 
 /**
  * Represents the view model required to render an entry inside the balance list.
  */
-export interface BalanceItemViewModel {
-  id: string;
-  amountLabel: string;
-  description: string;
-  installmentLabel?: string;
+export interface BalanceItemViewModel extends EntryRecordViewModel {
   timeLabel: string;
   timestamp: number;
-  type: EntryType;
-  isRecurring: boolean;
 }
 
 /**
@@ -37,10 +30,10 @@ export interface BalanceItemViewModel {
   imports: [
     IonItemSliding,
     IonItem,
-    IonLabel,
     IonItemOptions,
     IonItemOption,
     IonIcon,
+    EntryRecordComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -49,7 +42,6 @@ export class BalanceItemComponent {
   private readonly slidingItem?: IonItemSlidingElement;
 
   readonly itemSignal = input.required<BalanceItemViewModel>();
-  protected readonly entryType = EntryType;
 
   readonly editRequested = output<void>();
 
@@ -62,8 +54,6 @@ export class BalanceItemComponent {
     addIcons({
       'create-outline': createOutline,
       'trash-outline': trashOutline,
-      'arrow-up-circle-outline': arrowUpCircleOutline,
-      'repeat-outline': repeatOutline,
     });
   }
 

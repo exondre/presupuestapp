@@ -2,74 +2,18 @@
   display: block;
 }
 
+.balance-entry-item {
+  background: var(--ion-color-light);
+}
+
 .balance-item {
-  --background: transparent;
+  --background: var(--ion-color-light);
   --padding-start: 0;
   --inner-padding-end: 0;
-  padding: 0rem 1rem;
-
-  &__amount {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ion-color-dark);
-  }
-
-  &__description {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.875rem;
-    text-transform: capitalize;
-    color: var(--ion-color-medium);
-    line-height: 1.35;
-
-    &::first-letter {
-      text-transform: uppercase;
-    }
-
-    .balance-item__description-text {
-      color: inherit;
-    }
-
-    .balance-item__installment {
-      color: var(--ion-color-medium-shade);
-      font-weight: 500;
-      text-transform: none;
-    }
-
-    .balance-item__recurring {
-      font-size: 0.75rem;
-      color: var(--ion-color-medium);
-      vertical-align: middle;
-      margin-left: 0.15rem;
-    }
-
-    .balance-item__time {
-      color: var(--ion-color-medium-tint);
-      font-size: 0.675rem;
-      font-style: italic;
-      text-transform: none;
-      white-space: nowrap;
-    }
-  }
+  padding: 0.15rem 1rem;
 }
 
 ion-item-options {
   --background: transparent;
-}
-
-
-ion-icon {
-  margin-right: .75rem;
-  font-size: 24px;
-
-  &.expense {
-    color: var(--ion-color-expense);
-    transform: rotate(45deg);
-  }
-
-  &.income {
-    color: rgb(var(--ion-color-income-rgb));
-    transform: rotate(-135deg);
-  }
+  padding: 0.15rem 1rem;
 }
