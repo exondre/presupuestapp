@@ -88,7 +88,7 @@
                 aria-hidden="true"
                 class="balance-summary-card__icon"
               ></ion-icon>
-              <span>Esto es lo que has recibido en el {{ scopeLabel }}.</span>
+              <span>Lo que has recibido en el {{ scopeLabel }}.</span>
             </ion-card-content>
           </ion-card>
         </swiper-slide>
@@ -112,7 +112,7 @@
                 aria-hidden="true"
                 class="balance-summary-card__icon"
               ></ion-icon>
-              <span>Esto es lo que has gastado en el {{ scopeLabel }}.</span>
+              <span>Lo que has gastado en el {{ scopeLabel }}.</span>
             </ion-card-content>
           </ion-card>
         </swiper-slide>
@@ -136,7 +136,7 @@
                 aria-hidden="true"
                 class="balance-summary-card__icon"
               ></ion-icon>
-              <span>Esto es la suma de tus gastos e ingresos del {{ scopeLabel }}.</span>
+              <span>La suma de tus gastos e ingresos del {{ scopeLabel }}.</span>
             </ion-card-content>
           </ion-card>
         </swiper-slide>
@@ -154,6 +154,7 @@
             @for (item of group.items; track item.id) {
               <app-balance-item
                 [itemSignal]="item"
+                (viewRequested)="handleViewEntry(item.id)"
                 (editRequested)="handleEditEntry(item.id)"
                 (deleteRequested)="handleDeleteEntry(item.id)"
                 (deleteRequestedWithSwipe)="handleDeleteEntry(item.id, false)"

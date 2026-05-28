@@ -17,6 +17,13 @@ export const routes: Routes = [
           import('../balance/balance.page').then((m) => m.BalancePage),
       },
       {
+        path: 'balance/movement/:entryId',
+        loadComponent: () =>
+          import('../movement-detail/movement-detail.page').then(
+            (m) => m.MovementDetailPage,
+          ),
+      },
+      {
         path: 'trends',
         loadComponent: () =>
           import('../trends/trends.page').then((m) => m.TrendsPage),

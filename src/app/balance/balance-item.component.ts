@@ -47,6 +47,7 @@ export class BalanceItemComponent {
 
   readonly deleteRequested = output<void>();
   readonly deleteRequestedWithSwipe = output<void>();
+  readonly viewRequested = output<void>();
 
   readonly item = computed(() => this.itemSignal());
 
@@ -55,6 +56,13 @@ export class BalanceItemComponent {
       'create-outline': createOutline,
       'trash-outline': trashOutline,
     });
+  }
+
+  /**
+   * Emits an event indicating that the detail view was requested.
+   */
+  protected handleView(): void {
+    this.viewRequested.emit();
   }
 
   /**

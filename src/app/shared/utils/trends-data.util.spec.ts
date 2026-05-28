@@ -634,7 +634,7 @@ describe('trends data util', () => {
         expect(result.income.entries[0].isProjected).toBeFalse();
       });
 
-      it('returns top 3 common expenses sorted by amount desc', () => {
+      it('returns top 5 common expenses sorted by amount desc', () => {
         const expenses = [
           buildEntry({ id: 'e1', amount: 10000, description: 'Small' }),
           buildEntry({ id: 'e2', amount: 50000, description: 'Big' }),
@@ -644,10 +644,12 @@ describe('trends data util', () => {
         ];
         const result = buildMonthDetailData(currentKey, expenses, [], currentKey);
 
-        expect(result.commonExpense.topEntries.length).toBe(3);
+        expect(result.commonExpense.topEntries.length).toBe(5);
         expect(result.commonExpense.topEntries[0].description).toBe('Big');
         expect(result.commonExpense.topEntries[1].description).toBe('Medium');
         expect(result.commonExpense.topEntries[2].description).toBe('Other');
+        expect(result.commonExpense.topEntries[3].description).toBe('Small');
+        expect(result.commonExpense.topEntries[4].description).toBe('Tiny');
         expect(result.commonExpense.remainingCount).toBe(2);
       });
 

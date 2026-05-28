@@ -13,6 +13,7 @@ import { BalancePage } from './balance.page';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { PullToSearchComponent } from './pull-to-search/pull-to-search.component';
 import { EntryData, EntryType } from '../shared/models/entry-data.model';
+import { EntryActionService } from '../shared/services/entry-action.service';
 import { EntryService } from '../shared/services/entry.service';
 
 @Component({ selector: 'app-new-entry-modal', template: '' })
@@ -40,6 +41,12 @@ class EntryServiceMock {
   readonly removeEntry = jasmine.createSpy('removeEntry');
 }
 
+class EntryActionServiceMock {
+  readonly confirmAndDeleteEntry = jasmine
+    .createSpy('confirmAndDeleteEntry')
+    .and.resolveTo(false);
+}
+
 const FIXED_NOW = new Date('2026-03-22T15:00:00.000Z');
 
 /**
@@ -63,25 +70,31 @@ describe('BalancePage', () => {
   let component: BalancePage;
   let fixture: ComponentFixture<BalancePage>;
   let entryServiceMock: EntryServiceMock;
+  let entryActionServiceMock: EntryActionServiceMock;
 
   beforeEach(async () => {
     jasmine.clock().install();
     jasmine.clock().mockDate(FIXED_NOW);
 
     entryServiceMock = new EntryServiceMock();
+    entryActionServiceMock = new EntryActionServiceMock();
 
     await TestBed.configureTestingModule({
       imports: [BalancePage],
       providers: [
         provideIonicAngular(),
         { provide: EntryService, useValue: entryServiceMock },
+        { provide: EntryActionService, useValue: entryActionServiceMock },
         {
           provide: ActivatedRoute,
           useValue: { queryParamMap: of(new Map()) },
         },
         {
           provide: NavController,
-          useValue: { pop: jasmine.createSpy('pop') },
+          useValue: {
+            pop: jasmine.createSpy('pop'),
+            navigateForward: jasmine.createSpy('navigateForward'),
+          },
         },
         {
           provide: AlertController,
@@ -878,181 +891,20 @@ describe('BalancePage', () => {
   // ── handleDeleteEntry ──
 
   describe('handleDeleteEntry', () => {
-    it('should do nothing when entry is not found', async () => {
-      entryServiceMock.entriesSignal.set([]);
-
-      await (component as any).handleDeleteEntry('non-existent');
-
-      expect(entryServiceMock.removeEntry).not.toHaveBeenCalled();
-    });
-
-    it('should remove non-recurring entry without confirmation when not required', async () => {
-      entryServiceMock.entriesSignal.set([
-        buildEntry({ id: 'e1' }),
-      ]);
-
+    it('should delegate deletion to EntryActionService', async () => {
       await (component as any).handleDeleteEntry('e1', false);
 
-      expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('e1');
+      expect(entryActionServiceMock.confirmAndDeleteEntry).toHaveBeenCalledWith('e1', false);
     });
+  });
 
-    it('should show alert for non-recurring entry when confirmation is required', async () => {
-      const alertController = TestBed.inject(AlertController);
-      entryServiceMock.entriesSignal.set([
-        buildEntry({ id: 'e1' }),
-      ]);
+  describe('handleViewEntry', () => {
+    it('should navigate to movement detail', () => {
+      const navController = TestBed.inject(NavController);
 
-      await (component as any).handleDeleteEntry('e1', true);
+      (component as any).handleViewEntry('e1');
 
-      expect(alertController.create).toHaveBeenCalled();
-    });
-
-    it('should remove entry when alert destructive button handler is invoked', async () => {
-      let capturedConfig: any;
-      const alertController = TestBed.inject(AlertController);
-      (alertController.create as jasmine.Spy).and.callFake(async (config: any) => {
-        capturedConfig = config;
-        return { present: jasmine.createSpy('present') };
-      });
-      entryServiceMock.entriesSignal.set([buildEntry({ id: 'e1' })]);
-
-      await (component as any).handleDeleteEntry('e1', true);
-
-      const destructiveButton = capturedConfig.buttons.find(
-        (b: any) => b.role === 'destructive',
-      );
-      destructiveButton.handler();
-
-      expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('e1');
-    });
-
-    it('should remove recurring entry as single when confirmation not required', async () => {
-      entryServiceMock.entriesSignal.set([
-        buildEntry({
-          id: 'recurring-1',
-          recurrence: {
-            recurrenceId: 'r1',
-            anchorDate: '2026-01-15T10:00:00.000Z',
-            occurrenceIndex: 0,
-            frequency: 'monthly',
-            termination: { mode: 'indefinite' },
-          },
-        }),
-      ]);
-
-      await (component as any).handleDeleteEntry('recurring-1', false);
-
-      expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('recurring-1', 'single');
-    });
-
-    it('should show action sheet for recurring entry when confirmation is required', async () => {
-      const actionSheetController = TestBed.inject(ActionSheetController);
-      entryServiceMock.entriesSignal.set([
-        buildEntry({
-          id: 'recurring-1',
-          recurrence: {
-            recurrenceId: 'r1',
-            anchorDate: '2026-01-15T10:00:00.000Z',
-            occurrenceIndex: 0,
-            frequency: 'monthly',
-            termination: { mode: 'indefinite' },
-          },
-        }),
-      ]);
-
-      await (component as any).handleDeleteEntry('recurring-1', true);
-
-      expect(actionSheetController.create).toHaveBeenCalled();
-    });
-
-    it('should invoke single remove when action sheet single button is clicked', async () => {
-      let capturedConfig: any;
-      const actionSheetController = TestBed.inject(ActionSheetController);
-      (actionSheetController.create as jasmine.Spy).and.callFake(async (config: any) => {
-        capturedConfig = config;
-        return { present: jasmine.createSpy('present') };
-      });
-      entryServiceMock.entriesSignal.set([
-        buildEntry({
-          id: 'recurring-1',
-          recurrence: {
-            recurrenceId: 'r1',
-            anchorDate: '2026-01-15T10:00:00.000Z',
-            occurrenceIndex: 0,
-            frequency: 'monthly',
-            termination: { mode: 'indefinite' },
-          },
-        }),
-      ]);
-
-      await (component as any).handleDeleteEntry('recurring-1', true);
-
-      const singleButton = capturedConfig.buttons.find(
-        (b: any) => b.text === 'Solo esta transacción',
-      );
-      singleButton.handler();
-
-      expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('recurring-1', 'single');
-    });
-
-    it('should invoke future remove when action sheet future button is clicked', async () => {
-      let capturedConfig: any;
-      const actionSheetController = TestBed.inject(ActionSheetController);
-      (actionSheetController.create as jasmine.Spy).and.callFake(async (config: any) => {
-        capturedConfig = config;
-        return { present: jasmine.createSpy('present') };
-      });
-      entryServiceMock.entriesSignal.set([
-        buildEntry({
-          id: 'recurring-1',
-          recurrence: {
-            recurrenceId: 'r1',
-            anchorDate: '2026-01-15T10:00:00.000Z',
-            occurrenceIndex: 0,
-            frequency: 'monthly',
-            termination: { mode: 'indefinite' },
-          },
-        }),
-      ]);
-
-      await (component as any).handleDeleteEntry('recurring-1', true);
-
-      const futureButton = capturedConfig.buttons.find(
-        (b: any) => b.text === 'Esta y las futuras transacciones',
-      );
-      futureButton.handler();
-
-      expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('recurring-1', 'future');
-    });
-
-    it('should invoke series remove when action sheet destructive button is clicked', async () => {
-      let capturedConfig: any;
-      const actionSheetController = TestBed.inject(ActionSheetController);
-      (actionSheetController.create as jasmine.Spy).and.callFake(async (config: any) => {
-        capturedConfig = config;
-        return { present: jasmine.createSpy('present') };
-      });
-      entryServiceMock.entriesSignal.set([
-        buildEntry({
-          id: 'recurring-1',
-          recurrence: {
-            recurrenceId: 'r1',
-            anchorDate: '2026-01-15T10:00:00.000Z',
-            occurrenceIndex: 0,
-            frequency: 'monthly',
-            termination: { mode: 'indefinite' },
-          },
-        }),
-      ]);
-
-      await (component as any).handleDeleteEntry('recurring-1', true);
-
-      const seriesButton = capturedConfig.buttons.find(
-        (b: any) => b.role === 'destructive',
-      );
-      seriesButton.handler();
-
-      expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('recurring-1', 'series');
+      expect(navController.navigateForward).toHaveBeenCalledWith('/tabs/balance/movement/e1');
     });
   });
 
