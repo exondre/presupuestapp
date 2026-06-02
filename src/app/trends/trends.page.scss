@@ -208,7 +208,7 @@ ion-toolbar {
   }
 
   &__section {
-    margin-bottom: 0.75rem;
+    // margin-bottom: 0.75rem;
     padding: 0.75rem;
     // background: var(--ion-color-light);
     border-radius: var(--radius-md);
@@ -216,8 +216,39 @@ ion-toolbar {
 
   &__section-header {
     display: flex;
+    width: 100%;
     align-items: center;
     gap: 0.5rem;
+    padding: 0;
+    border: 0;
+    appearance: none;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: inherit;
+
+    &:focus-visible {
+      outline: 2px solid var(--ion-color-primary);
+      outline-offset: 4px;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  &__section-icon {
+    flex-shrink: 0;
+    color: var(--ion-color-medium);
+    font-size: 1rem;
+    transition: transform 180ms ease, color 180ms ease;
+  }
+
+  &__section-header--expanded &__section-icon {
+    color: var(--ion-color-tertiary);
+    transform: rotate(180deg);
+  }
+
+  &__section-body {
+    animation: fadeSlideIn 0.18s ease-out;
   }
 
   &__dot {

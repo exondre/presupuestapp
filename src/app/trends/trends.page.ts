@@ -17,7 +17,7 @@ import {
   NavController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { trendingUpOutline } from 'ionicons/icons';
+import { chevronDownOutline, trendingUpOutline } from 'ionicons/icons';
 import { EntryData } from '../shared/models/entry-data.model';
 import { EntryService } from '../shared/services/entry.service';
 import { UtilsService } from '../shared/services/utils.service';
@@ -40,6 +40,8 @@ const SHORT_YEAR_FORMATTER = new Intl.DateTimeFormat('es-CL', {
   timeZone: 'America/Santiago',
   year: '2-digit',
 });
+
+type TrendDetailSection = 'income' | 'commonExpense' | 'recurringExpense' | 'installmentExpense';
 
 @Component({
   selector: 'app-trends',
@@ -68,8 +70,14 @@ export class TrendsPage implements AfterViewInit {
   /** Currently selected month key for the detail panel. */
   protected readonly selectedMonthKey = signal<string>(buildMonthKey(new Date()));
 
+  /** Detail total sections expanded by the user. */
+  protected readonly expandedDetailSections = signal<ReadonlySet<TrendDetailSection>>(new Set());
+
   constructor() {
-    addIcons({ 'trending-up-outline': trendingUpOutline });
+    addIcons({
+      'chevron-down-outline': chevronDownOutline,
+      'trending-up-outline': trendingUpOutline,
+    });
 
     effect(() => {
       const data = this.trendsData();
@@ -144,7 +152,39 @@ export class TrendsPage implements AfterViewInit {
    * @param monthKey The YYYY-MM key of the month to select.
    */
   protected selectMonth(monthKey: string): void {
+    if (this.selectedMonthKey() !== monthKey) {
+      this.expandedDetailSections.set(new Set());
+    }
+
     this.selectedMonthKey.set(monthKey);
+  }
+
+  /**
+   * Checks whether a detail total section is expanded.
+   *
+   * @param section Detail section identifier.
+   * @returns True when the section details are visible.
+   */
+  protected isDetailSectionExpanded(section: TrendDetailSection): boolean {
+    return this.expandedDetailSections().has(section);
+  }
+
+  /**
+   * Shows or hides the entries for a detail total section.
+   *
+   * @param section Detail section identifier.
+   */
+  protected toggleDetailSection(section: TrendDetailSection): void {
+    this.expandedDetailSections.update((expandedSections) => {
+      const nextSections = new Set(expandedSections);
+      if (nextSections.has(section)) {
+        nextSections.delete(section);
+      } else {
+        nextSections.add(section);
+      }
+
+      return nextSections;
+    });
   }
 
   /**
