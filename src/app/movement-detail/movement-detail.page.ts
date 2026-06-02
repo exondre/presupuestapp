@@ -7,8 +7,6 @@ import {
   IonButtons,
   IonCard,
   IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
   IonChip,
   IonContent,
   IonHeader,
@@ -25,6 +23,7 @@ import {
   arrowBackOutline,
   calendarOutline,
   cashOutline,
+  chevronDownOutline,
   createOutline,
   repeatOutline,
   timeOutline,
@@ -78,8 +77,6 @@ interface MovementDetailViewModel {
     IonTitle,
     IonContent,
     IonCard,
-    IonCardHeader,
-    IonCardTitle,
     IonCardContent,
     IonChip,
     IonBadge,
@@ -102,6 +99,7 @@ export class MovementDetailPage {
   private readonly navController = inject(NavController);
   private readonly router = inject(Router);
   private readonly entryId = signal<string | null>(null);
+  protected readonly isSeriesExpanded = signal(false);
 
   protected readonly entry = computed(() => {
     const entryId = this.entryId();
@@ -131,6 +129,7 @@ export class MovementDetailPage {
       'arrow-back-outline': arrowBackOutline,
       'calendar-outline': calendarOutline,
       'cash-outline': cashOutline,
+      'chevron-down-outline': chevronDownOutline,
       'create-outline': createOutline,
       'repeat-outline': repeatOutline,
       'time-outline': timeOutline,
@@ -204,6 +203,13 @@ export class MovementDetailPage {
     }
 
     void this.navController.navigateForward(this.buildSiblingMovementPath(item.entryId));
+  }
+
+  /**
+   * Shows or hides the generated movement series details.
+   */
+  protected toggleSeriesExpanded(): void {
+    this.isSeriesExpanded.update((isExpanded) => !isExpanded);
   }
 
   /**
