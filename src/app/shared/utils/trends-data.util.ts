@@ -359,6 +359,7 @@ function projectEntryOccurrences(
  * A single item to display in the month detail panel.
  */
 export interface MonthDetailEntry {
+  id?: string;
   description: string;
   amount: number;
   installmentLabel?: string;
@@ -511,6 +512,7 @@ export function buildMonthDetailData(
  */
 function toDetailEntries(entries: EntryData[]): MonthDetailEntry[] {
   return entries.map((entry) => ({
+    id: entry.id,
     description: (entry.description ?? '').trim() || 'Sin descripción',
     amount: entry.amount,
     isProjected: false,
@@ -527,6 +529,7 @@ function toInstallmentDetailEntries(entries: EntryData[]): MonthDetailEntry[] {
   return entries.map((entry) => {
     const details = resolveInstallmentDisplayDetailsFromEntry(entry);
     return {
+      id: entry.id,
       description: (entry.description ?? '').trim() || 'Sin descripción',
       amount: entry.amount,
       installmentLabel: details?.installmentLabel,

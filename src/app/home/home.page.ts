@@ -175,4 +175,13 @@ export class HomePage {
   protected navigateToBalance(): void {
     this.navController.navigateForward('/tabs/balance');
   }
+
+  /**
+   * Opens the detail for a recent movement while preserving the Home stack.
+   *
+   * @param entryId Identifier of the entry to inspect.
+   */
+  protected handleRecentEntrySelected(entryId: string): void {
+    void this.navController.navigateForward(`/tabs/home/movement/${entryId}`);
+  }
 }

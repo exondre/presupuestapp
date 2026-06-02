@@ -14,6 +14,7 @@ import {
   IonIcon,
   IonTitle,
   IonToolbar,
+  NavController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { trendingUpOutline } from 'ionicons/icons';
@@ -24,6 +25,7 @@ import {
   buildMonthDetailData,
   buildMonthKey,
   buildTrendsData,
+  MonthDetailEntry,
   MonthDetailData,
   TrendMonthData,
   TrendsChartData,
@@ -54,6 +56,7 @@ const SHORT_YEAR_FORMATTER = new Intl.DateTimeFormat('es-CL', {
 export class TrendsPage implements AfterViewInit {
   private readonly entryService = inject(EntryService);
   private readonly utilsService = inject(UtilsService);
+  private readonly navController = inject(NavController);
 
   @ViewChild('chartScroll')
   private chartScroll?: ElementRef<HTMLElement>;
@@ -142,6 +145,19 @@ export class TrendsPage implements AfterViewInit {
    */
   protected selectMonth(monthKey: string): void {
     this.selectedMonthKey.set(monthKey);
+  }
+
+  /**
+   * Opens a real movement from the selected month detail panel.
+   *
+   * @param entry Month detail entry selected by the user.
+   */
+  protected handleMonthDetailEntrySelected(entry: MonthDetailEntry): void {
+    if (!entry.id || entry.isProjected) {
+      return;
+    }
+
+    void this.navController.navigateForward(`/tabs/trends/movement/${entry.id}`);
   }
 
   /**

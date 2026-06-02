@@ -1,6 +1,6 @@
 import { Component, DestroyRef, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBadge,
   IonButton,
@@ -100,6 +100,7 @@ export class MovementDetailPage {
   private readonly entryService = inject(EntryService);
   private readonly entryActionService = inject(EntryActionService);
   private readonly navController = inject(NavController);
+  private readonly router = inject(Router);
   private readonly entryId = signal<string | null>(null);
 
   protected readonly entry = computed(() => {
@@ -147,7 +148,7 @@ export class MovementDetailPage {
   protected async handleNavigateBack(): Promise<void> {
     const didPop = await this.navController.pop();
     if (!didPop) {
-      await this.navController.navigateBack('/tabs/balance');
+      await this.navController.navigateBack(this.resolveParentPath());
     }
   }
 
@@ -202,7 +203,33 @@ export class MovementDetailPage {
       return;
     }
 
-    void this.navController.navigateForward(`/tabs/balance/movement/${item.entryId}`);
+    void this.navController.navigateForward(this.buildSiblingMovementPath(item.entryId));
+  }
+
+  /**
+   * Resolves the parent route for the current movement detail URL.
+   *
+   * @returns Parent path used as fallback when Ionic has no stack to pop.
+   */
+  private resolveParentPath(): string {
+    const path = this.router.url.split('?')[0];
+    const movementIndex = path.lastIndexOf('/movement/');
+
+    if (movementIndex === -1) {
+      return '/tabs/balance';
+    }
+
+    return path.slice(0, movementIndex);
+  }
+
+  /**
+   * Builds a movement detail path inside the current navigation stack.
+   *
+   * @param entryId Identifier of the sibling entry to open.
+   * @returns Route path for the sibling movement detail screen.
+   */
+  private buildSiblingMovementPath(entryId: string): string {
+    return `${this.resolveParentPath()}/movement/${entryId}`;
   }
 
   /**

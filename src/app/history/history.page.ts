@@ -70,14 +70,9 @@ export class HistoryPage {
    * @param item Month summary descriptor used to derive the reference date.
    */
   protected handleMonthSelected(item: MonthSummaryListItem): void {
-    const referenceMonth = new Date(item.year, item.month - 1, 1);
-
-    void this.navController.navigateForward('/tabs/history/detail', {
-      queryParams: {
-        year: referenceMonth.getFullYear(),
-        month: referenceMonth.getMonth() + 1,
-      },
-    });
+    void this.navController.navigateForward(
+      `/tabs/history/detail/${item.year}/${item.month}`,
+    );
   }
 
   /**

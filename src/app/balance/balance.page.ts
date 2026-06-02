@@ -263,7 +263,9 @@ export class BalancePage {
       'search-outline': searchOutline,
     });
 
-    this.activatedRoute.queryParamMap
+    const routeParams = this.activatedRoute.paramMap ?? this.activatedRoute.queryParamMap;
+
+    routeParams
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {
         const referenceMonth = this.resolveReferenceMonth(
@@ -290,7 +292,7 @@ export class BalancePage {
    * @param entryId Identifier of the entry to inspect.
    */
   protected handleViewEntry(entryId: string): void {
-    void this.navController.navigateForward(`/tabs/balance/movement/${entryId}`);
+    void this.navController.navigateForward(this.buildMovementDetailPath(entryId));
   }
 
   /**
@@ -354,8 +356,28 @@ export class BalancePage {
   /**
    * Navigates back to the previous view on the navigation stack.
    */
-  protected handleNavigateBack(): void {
-    this.navController.pop();
+  protected async handleNavigateBack(): Promise<void> {
+    const didPop = await this.navController.pop();
+    if (!didPop && this.hasReferenceMonth()) {
+      await this.navController.navigateBack('/tabs/history');
+    }
+  }
+
+  /**
+   * Builds the movement detail path preserving the current tab route stack.
+   *
+   * @param entryId Identifier of the entry to inspect.
+   * @returns Route path for the movement detail screen.
+   */
+  private buildMovementDetailPath(entryId: string): string {
+    const year = this.activatedRoute.snapshot?.paramMap?.get('year');
+    const month = this.activatedRoute.snapshot?.paramMap?.get('month');
+
+    if (year && month) {
+      return `/tabs/history/detail/${year}/${month}/movement/${entryId}`;
+    }
+
+    return `/tabs/balance/movement/${entryId}`;
   }
 
   /**

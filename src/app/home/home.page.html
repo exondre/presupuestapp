@@ -35,7 +35,12 @@
       </div>
       <ion-list lines="none" class="home-recent__list">
         @for (entry of recentEntries(); track entry.id) {
-          <ion-item class="home-recent__item" lines="none">
+          <ion-item
+            class="home-recent__item"
+            lines="none"
+            [button]="true"
+            (click)="handleRecentEntrySelected(entry.id)"
+          >
             <app-entry-record [itemSignal]="entry" [showDate]="true" [compact]="true"></app-entry-record>
           </ion-item>
         }
