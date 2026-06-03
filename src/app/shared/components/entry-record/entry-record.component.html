@@ -29,7 +29,8 @@
         <span class="entry-record__meta-recurring">
           @if ((showDate() && item().dateLabel) || item().installmentLabel) { - }
           <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
-          Recurrente -
+          Recurrente
+          @if (!showDate() && !compact()) { - }
         </span>
       }
       @if (showTime() && item().timeLabel) {
