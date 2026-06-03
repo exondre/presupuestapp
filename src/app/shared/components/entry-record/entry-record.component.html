@@ -1,0 +1,49 @@
+<div
+  class="entry-record"
+  [class.entry-record--compact]="compact()"
+  [attr.aria-label]="accessibleLabel()"
+  role="group"
+>
+  <span
+    class="entry-record__indicator"
+    [class.entry-record__indicator--income]="item().type === entryType.INCOME"
+    [class.entry-record__indicator--expense]="item().type === entryType.EXPENSE"
+    aria-hidden="true"
+  ></span>
+
+  <span class="entry-record__content">
+    <span class="entry-record__description">
+      {{ item().description }}
+    </span>
+    <span class="entry-record__meta">
+      @if (showDate() && item().dateLabel) {
+        <span class="entry-record__meta-date">{{ item().dateLabel }}</span>
+      }
+      @if (item().installmentLabel) {
+        <span class="entry-record__meta-installment">
+          @if (showDate() && item().dateLabel) { - }
+          {{ item().installmentLabel }}
+        </span>
+      }
+      @if (item().isRecurring) {
+        <span class="entry-record__meta-recurring">
+          @if ((showDate() && item().dateLabel) || item().installmentLabel) { - }
+          <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+          Recurrente
+          @if (!showDate() && !compact()) { - }
+        </span>
+      }
+      @if (showTime() && item().timeLabel) {
+        <span class="entry-record__meta-time">{{ item().timeLabel }}</span>
+      }
+    </span>
+  </span>
+
+  <span
+    class="entry-record__amount"
+    [class.entry-record__amount--income]="coloredAmount() && item().type === entryType.INCOME"
+    [class.entry-record__amount--expense]="coloredAmount() && item().type === entryType.EXPENSE"
+  >
+    {{ item().amountLabel }}
+  </span>
+</div>

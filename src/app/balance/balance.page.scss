@@ -92,6 +92,21 @@ ion-title {
   // padding-bottom: .85rem;
 }
 
+.balance-list-action {
+  padding: 0.25rem 1rem 1rem;
+
+  &__hint {
+    color: var(--ion-color-medium);
+    font-size: 0.8125rem;
+    margin: 0 0 0.25rem;
+    text-align: center;
+  }
+}
+
+.balance-list-action--search-results {
+  padding-top: 0.75rem;
+}
+
 .balance-divider {
   background: rgba(var(--ion-color-light-rgb), 0.8);
   -webkit-backdrop-filter: blur(5px) saturate(180%);
@@ -149,4 +164,3 @@ ion-title {
     line-height: 1.4;
   }
 }
-

@@ -1,0 +1,155 @@
+<ion-header [translucent]="false">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button fill="clear" (click)="handleNavigateBack()" aria-label="Volver">
+        <ion-icon slot="icon-only" name="arrow-back-outline" aria-hidden="true"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Detalle del movimiento</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="movement-detail-content">
+  @if (detail(); as detail) {
+    <div class="movement-detail__stack">
+      <ion-card
+        class="movement-panel movement-card movement-card--hero"
+        [class.movement-card--income]="detail.type === entryType.INCOME"
+        [class.movement-card--expense]="detail.type === entryType.EXPENSE"
+      >
+
+
+        <ion-card-content class="movement-card__content">
+          <div class="movement-card__amount">{{ detail.amountLabel }}</div>
+          <p class="movement-card__description">{{ detail.description }}</p>
+          @if (detail.installmentLabel || detail.recurrenceLabel) {
+            <div class="movement-card__chips">
+              @if (detail.installmentLabel) {
+                <ion-chip color="tertiary" class="movement-card__chip">{{ detail.installmentLabel }}</ion-chip>
+              }
+              @if (detail.recurrenceLabel) {
+                <ion-chip color="primary" class="movement-card__chip">
+                  <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+                  <ion-label>{{ detail.recurrenceLabel }}</ion-label>
+                </ion-chip>
+              }
+            </div>
+          }
+        </ion-card-content>
+      </ion-card>
+
+      <section class="movement-panel movement-panel--meta">
+        <ion-list lines="none" class="movement-panel__list movement-detail-list">
+          <ion-item class="movement-detail-list__item">
+            <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+            <ion-label>
+              <p>Fecha</p>
+              <h3>{{ detail.dateLabel }}</h3>
+            </ion-label>
+          </ion-item>
+          <ion-item class="movement-detail-list__item">
+            <ion-icon slot="start" name="time-outline" aria-hidden="true"></ion-icon>
+            <ion-label>
+              <p>Hora</p>
+              <h3>{{ detail.timeLabel }}</h3>
+            </ion-label>
+          </ion-item>
+          <ion-item class="movement-detail-list__item">
+            <ion-icon slot="start" name="cash-outline" aria-hidden="true"></ion-icon>
+            <ion-label>
+              <p>Tipo</p>
+              <h3>{{ detail.typeLabel }}</h3>
+            </ion-label>
+          </ion-item>
+          @if (detail.updatedAtLabel) {
+            <ion-item class="movement-detail-list__item">
+              <ion-label>
+                <p>Última actualización</p>
+                <h3>{{ detail.updatedAtLabel }}</h3>
+              </ion-label>
+            </ion-item>
+          }
+        </ion-list>
+      </section>
+
+      @if (series(); as series) {
+        <section
+          class="movement-panel movement-panel--series movement-series"
+          [class.movement-series--expanded]="isSeriesExpanded()"
+        >
+          <button
+            class="movement-panel__header movement-series__toggle"
+            type="button"
+            [attr.aria-expanded]="isSeriesExpanded()"
+            aria-controls="movement-series-content"
+            (click)="toggleSeriesExpanded()"
+          >
+            <span class="movement-series__toggle-copy">
+              <span class="movement-panel__title">{{ series.title }}</span>
+              <span class="movement-panel__subtitle">{{ series.subtitle }}</span>
+            </span>
+            <ion-icon
+              class="movement-series__toggle-icon"
+              name="chevron-down-outline"
+              aria-hidden="true"
+            ></ion-icon>
+          </button>
+
+          @if (isSeriesExpanded()) {
+            <div id="movement-series-content">
+              <ion-list lines="none" class="movement-panel__list movement-series__list">
+                @for (item of series.items; track item.occurrenceIndex) {
+                  <ion-item
+                    class="movement-series__item"
+                    [class.movement-series__item--current]="item.status === 'current'"
+                    [button]="!!item.entryId && item.entryId !== detail.id"
+                    detail="false"
+                    (click)="handleSeriesItemSelected(item)"
+                  >
+                    <ion-label>
+                      <h3>{{ item.label }}</h3>
+                      <p>{{ item.dateLabel }} · {{ item.amountLabel }}</p>
+                    </ion-label>
+                    <ion-badge slot="end" [color]="resolveStatusColor(item.status)">
+                      {{ resolveStatusLabel(item.status) }}
+                    </ion-badge>
+                  </ion-item>
+                }
+              </ion-list>
+
+              @if (series.hiddenCount > 0) {
+                <p class="movement-series__hidden">
+                  Mostrando {{ series.visibleCount }} de {{ series.totalCount }} movimientos generados.
+                  Hay {{ series.hiddenCount }} más en esta serie.
+                </p>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <div class="movement-actions">
+        <ion-button expand="block" (click)="handleEditEntry()">
+          <ion-icon slot="start" name="create-outline" aria-hidden="true"></ion-icon>
+          Editar movimiento
+        </ion-button>
+        <ion-button expand="block" fill="outline" color="danger" (click)="handleDeleteEntry()">
+          <ion-icon slot="start" name="trash-outline" aria-hidden="true"></ion-icon>
+          Eliminar movimiento
+        </ion-button>
+      </div>
+    </div>
+  } @else {
+    <div class="movement-empty">
+      <ion-icon name="cash-outline" aria-hidden="true"></ion-icon>
+      <h2>Movimiento no encontrado</h2>
+      <p>Es posible que haya sido eliminado o que ya no esté disponible.</p>
+      <ion-button fill="outline" (click)="handleNavigateBack()">Volver</ion-button>
+    </div>
+  }
+</ion-content>
+
+<app-new-entry-modal
+  #newEntryModal
+  (entryUpdated)="handleEntryUpdated($event)"
+></app-new-entry-modal>

@@ -77,6 +77,26 @@ function buildSelfTransferEntry(entry?: ParsedEntry, ignored = true): SelfTransf
   return { entry: entry ?? buildParsedEntry({ description: 'Auto-transferencia' }), ignored };
 }
 
+/**
+ * Formats an ISO date as a calendar key in the app timezone.
+ *
+ * @param dateStr ISO date string.
+ * @returns Date key in yyyy-mm-dd format for America/Santiago.
+ */
+function getChileDateKey(dateStr: string): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+  });
+  const parts = formatter.formatToParts(new Date(dateStr));
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+}
+
 // ---------------------------------------------------------------------------
 // UtilsService stub – used in template only, no method calls under test
 // ---------------------------------------------------------------------------
@@ -167,6 +187,21 @@ describe('ImportReviewModalComponent', () => {
       setupComponent(buildMergeResult());
 
       expect((component as any).confirmedDuplicates()).toEqual([]);
+    });
+
+    it('resets deferredEntries to an empty set', () => {
+      const firstReady = buildParsedEntry({ description: 'First' });
+      const secondReady = buildParsedEntry({ description: 'Second' });
+      setupComponent(buildMergeResult({ readyToImport: [firstReady] }));
+      (component as any).toggleDeferredToNextMonth(firstReady);
+
+      fixture.componentRef.setInput(
+        'mergeResult',
+        buildMergeResult({ readyToImport: [secondReady] }),
+      );
+      fixture.detectChanges();
+
+      expect((component as any).deferredEntries().size).toBe(0);
     });
 
     it('re-runs when mergeResult input changes', () => {
@@ -420,6 +455,66 @@ describe('ImportReviewModalComponent', () => {
 
       expect((component as any).readyToImport()).toEqual([entry2]);
     });
+
+    it('clears the next-month marker for the removed entry', () => {
+      const entry = buildParsedEntry({ description: 'Ready' });
+      setupComponent(buildMergeResult({ readyToImport: [entry] }));
+      (component as any).toggleDeferredToNextMonth(entry);
+
+      (component as any).removeFromReady(entry);
+
+      expect((component as any).isDeferredToNextMonth(entry)).toBeFalse();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // next-month accounting
+  // -------------------------------------------------------------------------
+
+  describe('next-month accounting', () => {
+    it('marks a ready entry for next-month accounting', () => {
+      const entry = buildParsedEntry();
+      setupComponent(buildMergeResult({ readyToImport: [entry] }));
+
+      (component as any).toggleDeferredToNextMonth(entry);
+
+      expect((component as any).isDeferredToNextMonth(entry)).toBeTrue();
+    });
+
+    it('unmarks a ready entry when toggled twice', () => {
+      const entry = buildParsedEntry();
+      setupComponent(buildMergeResult({ readyToImport: [entry] }));
+
+      (component as any).toggleDeferredToNextMonth(entry);
+      (component as any).toggleDeferredToNextMonth(entry);
+
+      expect((component as any).isDeferredToNextMonth(entry)).toBeFalse();
+    });
+
+    it('returns the first day of the next month in America/Santiago', () => {
+      setupComponent(buildMergeResult());
+
+      const result = (component as any).getNextMonthAccountingDate('2026-05-29T04:00:00.000Z');
+
+      expect(getChileDateKey(result)).toBe('2026-06-01');
+    });
+
+    it('handles December to January rollover', () => {
+      setupComponent(buildMergeResult());
+
+      const result = (component as any).getNextMonthAccountingDate('2026-12-29T03:00:00.000Z');
+
+      expect(getChileDateKey(result)).toBe('2027-01-01');
+    });
+
+    it('formats original short date using day and month', () => {
+      setupComponent(buildMergeResult());
+
+      const result = (component as any).formatOriginalShortDate('2026-05-29T04:00:00.000Z');
+
+      expect(result).toContain('29');
+      expect(result).toContain('05');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -482,6 +577,53 @@ describe('ImportReviewModalComponent', () => {
       (component as any).confirmImport();
 
       expect(emitSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves marked entries to the first day of the next accounting month', () => {
+      const ready = buildParsedEntry({
+        date: '2026-05-29T04:00:00.000Z',
+        description: 'Supermercado Lider',
+      });
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      (component as any).toggleDeferredToNextMonth(ready);
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+
+      (component as any).confirmImport();
+
+      const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
+      expect(getChileDateKey(payload.entriesToImport[0].date)).toBe('2026-06-01');
+    });
+
+    it('appends the original short date to deferred entry descriptions', () => {
+      const ready = buildParsedEntry({
+        date: '2026-05-29T04:00:00.000Z',
+        description: 'Supermercado Lider',
+      });
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      (component as any).toggleDeferredToNextMonth(ready);
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+
+      (component as any).confirmImport();
+
+      const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
+      expect(payload.entriesToImport[0].description).toBe('Supermercado Lider (29/05)');
+    });
+
+    it('does not mutate the original ready entry when applying the accounting override', () => {
+      const ready = buildParsedEntry({
+        date: '2026-05-29T04:00:00.000Z',
+        description: 'Original',
+      });
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      (component as any).toggleDeferredToNextMonth(ready);
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+
+      (component as any).confirmImport();
+
+      const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
+      expect(payload.entriesToImport[0]).not.toBe(ready);
+      expect(ready.date).toBe('2026-05-29T04:00:00.000Z');
+      expect(ready.description).toBe('Original');
     });
   });
 

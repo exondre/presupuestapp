@@ -1,11 +1,12 @@
 import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, DestroyRef, inject, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { ActionSheetController, AlertController, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar, NavController } from '@ionic/angular/standalone';
+import { IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonItemDivider, IonItemGroup, IonLabel, IonList, IonTitle, IonToolbar, NavController } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addOutline, chevronBackOutline, informationCircleOutline, searchOutline, walletOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
 import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
+import { EntryActionService } from '../shared/services/entry-action.service';
 import { EntryService } from '../shared/services/entry.service';
 import { resolveInstallmentDisplayDetailsFromEntry } from '../shared/utils/recurrence-installment-display.util';
 import {
@@ -19,6 +20,8 @@ interface BalanceDayGroup {
   label: string;
   items: BalanceItemViewModel[];
 }
+
+type SearchScope = 'visible' | 'all';
 
 /**
  * Displays the balance sheet with the entries grouped by day using Chile's timezone.
@@ -59,6 +62,10 @@ export class BalancePage {
 
   private static readonly chileTimeZone = 'America/Santiago';
 
+  private static readonly loadMoreDays = 5;
+
+  private static readonly searchResultsPageSize = 50;
+
   private readonly dayKeyFormatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: BalancePage.chileTimeZone,
     year: 'numeric',
@@ -85,9 +92,7 @@ export class BalancePage {
   });
 
   private readonly entryService = inject(EntryService);
-
-  private readonly alertController = inject(AlertController);
-  private readonly actionSheetController = inject(ActionSheetController);
+  private readonly entryActionService = inject(EntryActionService);
 
   private readonly navController = inject(NavController);
 
@@ -97,31 +102,113 @@ export class BalancePage {
 
   private readonly referenceMonth = signal<Date | null>(null);
 
+  private readonly visibleStartDayKey = signal(
+    this.getInitialVisibleStartDayKey(new Date()),
+  );
+
+  private readonly visibleEndDayKey = signal(
+    this.getCurrentMonthEndDayKey(new Date()),
+  );
+
+  private readonly searchScope = signal<SearchScope>('visible');
+
+  private readonly searchResultsLimit = signal(
+    BalancePage.searchResultsPageSize,
+  );
+
   protected readonly searchTerm = signal('');
 
   protected readonly searchActive = computed(
     () => this.searchTerm().trim().length > 0,
   );
 
-  protected readonly filteredEntries = computed(() => {
+  protected readonly visibleEntries = computed(() => {
     const entries = this.entryService.entriesSignal();
     const referenceMonth = this.referenceMonth();
     if (!referenceMonth) {
-      return entries;
+      return entries.filter((entry) => this.isEntryInsideVisibleRange(entry));
     }
 
     return this.entryService.filterEntriesByMonth(referenceMonth);
   });
 
+  protected readonly filteredEntries = computed(() => this.visibleEntries());
+
   protected readonly displayedEntries = computed(() => {
-    const entries = this.filteredEntries();
     const term = this.normalizeSearchText(this.searchTerm());
+    const entries = this.resolveSearchBaseEntries(term);
 
     if (term.length === 0) {
       return entries;
     }
 
-    return entries.filter((entry) => this.matchesSearchTerm(entry, term));
+    const matches = entries.filter((entry) => this.matchesSearchTerm(entry, term));
+
+    if (this.searchScope() !== 'all' || this.hasReferenceMonth()) {
+      return matches;
+    }
+
+    return this.sortEntriesByDateDescending(matches).slice(
+      0,
+      this.searchResultsLimit(),
+    );
+  });
+
+  protected readonly globalSearchMatchesCount = computed(() => {
+    const term = this.normalizeSearchText(this.searchTerm());
+
+    if (term.length === 0 || this.searchScope() !== 'all' || this.hasReferenceMonth()) {
+      return 0;
+    }
+
+    return this.entryService
+      .entriesSignal()
+      .filter((entry) => this.matchesSearchTerm(entry, term)).length;
+  });
+
+  protected readonly hasMoreMovements = computed(() => {
+    if (this.hasReferenceMonth() || this.searchActive() || this.searchScope() === 'all') {
+      return false;
+    }
+
+    return this.entryService
+      .entriesSignal()
+      .some((entry) => this.isEntryBeforeVisibleRange(entry));
+  });
+
+  protected readonly canExpandSearchToAll = computed(() => {
+    const term = this.normalizeSearchText(this.searchTerm());
+
+    if (term.length === 0 || this.hasReferenceMonth() || this.searchScope() === 'all') {
+      return false;
+    }
+
+    return this.entryService
+      .entriesSignal()
+      .some((entry) =>
+        !this.isEntryInsideVisibleRange(entry)
+        && this.matchesSearchTerm(entry, term),
+      );
+  });
+
+  protected readonly hasStoredEntries = computed(() =>
+    this.entryService.entriesSignal().length > 0,
+  );
+
+  protected readonly hasMoreGlobalSearchResults = computed(() =>
+    this.searchScope() === 'all'
+    && this.globalSearchMatchesCount() > this.searchResultsLimit(),
+  );
+
+  protected readonly searchResultsStatusLabel = computed(() => {
+    if (this.searchScope() !== 'all') {
+      return '';
+    }
+
+    const total = this.globalSearchMatchesCount();
+    const displayed = Math.min(this.searchResultsLimit(), total);
+
+    return `Mostrando ${displayed} de ${total} resultados`;
   });
 
   protected readonly groups = computed(() =>
@@ -176,7 +263,9 @@ export class BalancePage {
       'search-outline': searchOutline,
     });
 
-    this.activatedRoute.queryParamMap
+    const routeParams = this.activatedRoute.paramMap ?? this.activatedRoute.queryParamMap;
+
+    routeParams
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {
         const referenceMonth = this.resolveReferenceMonth(
@@ -194,80 +283,16 @@ export class BalancePage {
    * @param entryId Identifier of the entry to remove.
    */
   protected async handleDeleteEntry(entryId: string, requireConfirmation: boolean = true): Promise<void> {
-    const entry = this.entryService
-      .entriesSignal()
-      .find((item) => item.id === entryId);
+    await this.entryActionService.confirmAndDeleteEntry(entryId, requireConfirmation);
+  }
 
-    if (!entry) {
-      return;
-    }
-
-    const isRecurring = entry.recurrence?.frequency === 'monthly';
-
-    if (!isRecurring) {
-      if (!requireConfirmation) {
-        this.entryService.removeEntry(entryId);
-        return;
-      }
-
-      const alert = await this.alertController.create({
-        header: '¿Eliminar transacción?',
-        message: 'Esta acción eliminará la transacción de tu registro.',
-        buttons: [
-          {
-            text: 'Cancelar',
-            role: 'cancel',
-          },
-          {
-            text: 'Eliminar',
-            role: 'destructive',
-            handler: () => {
-              this.entryService.removeEntry(entryId);
-            },
-          },
-        ],
-      });
-
-      await alert.present();
-      return;
-    }
-
-    if (!requireConfirmation) {
-      this.entryService.removeEntry(entryId, 'single');
-      return;
-    }
-
-    const actionSheet = await this.actionSheetController.create({
-      header: '¿Eliminar gasto recurrente?',
-      subHeader: 'Selecciona el alcance de la eliminación.',
-      buttons: [
-        {
-          text: 'Solo esta transacción',
-          handler: () => {
-            this.entryService.removeEntry(entryId, 'single');
-          },
-        },
-        {
-          text: 'Esta y las futuras transacciones',
-          handler: () => {
-            this.entryService.removeEntry(entryId, 'future');
-          },
-        },
-        {
-          text: 'Eliminar serie completa',
-          role: 'destructive',
-          handler: () => {
-            this.entryService.removeEntry(entryId, 'series');
-          },
-        },
-        {
-          text: 'Cancelar',
-          role: 'cancel',
-        },
-      ],
-    });
-
-    await actionSheet.present();
+  /**
+   * Navigates to the movement detail for the requested entry.
+   *
+   * @param entryId Identifier of the entry to inspect.
+   */
+  protected handleViewEntry(entryId: string): void {
+    void this.navController.navigateForward(this.buildMovementDetailPath(entryId));
   }
 
   /**
@@ -331,8 +356,28 @@ export class BalancePage {
   /**
    * Navigates back to the previous view on the navigation stack.
    */
-  protected handleNavigateBack(): void {
-    this.navController.pop();
+  protected async handleNavigateBack(): Promise<void> {
+    const didPop = await this.navController.pop();
+    if (!didPop && this.hasReferenceMonth()) {
+      await this.navController.navigateBack('/tabs/history');
+    }
+  }
+
+  /**
+   * Builds the movement detail path preserving the current tab route stack.
+   *
+   * @param entryId Identifier of the entry to inspect.
+   * @returns Route path for the movement detail screen.
+   */
+  private buildMovementDetailPath(entryId: string): string {
+    const year = this.activatedRoute.snapshot?.paramMap?.get('year');
+    const month = this.activatedRoute.snapshot?.paramMap?.get('month');
+
+    if (year && month) {
+      return `/tabs/history/detail/${year}/${month}/movement/${entryId}`;
+    }
+
+    return `/tabs/balance/movement/${entryId}`;
   }
 
   /**
@@ -343,12 +388,14 @@ export class BalancePage {
   public setReferenceMonth(referenceMonth: Date | null): void {
     if (!referenceMonth) {
       this.referenceMonth.set(null);
+      this.resetVisibleRange();
       return;
     }
 
     const normalizedReference = new Date(referenceMonth);
     if (Number.isNaN(normalizedReference.getTime())) {
       this.referenceMonth.set(null);
+      this.resetVisibleRange();
       return;
     }
 
@@ -361,6 +408,7 @@ export class BalancePage {
    * @param term Current search input value.
    */
   protected handleSearchTermChange(term: string): void {
+    this.resetSearchScope();
     this.searchTerm.set(term);
   }
 
@@ -369,6 +417,234 @@ export class BalancePage {
    */
   protected handleSearchCleared(): void {
     this.searchTerm.set('');
+    this.resetSearchScope();
+  }
+
+  /**
+   * Extends the visible movement window backwards by a fixed amount of days.
+   */
+  protected loadMoreMovements(): void {
+    this.visibleStartDayKey.update((dayKey) =>
+      this.shiftDayKey(dayKey, -BalancePage.loadMoreDays),
+    );
+  }
+
+  /**
+   * Enables searching across the complete local movement history.
+   */
+  protected expandSearchToAllMovements(): void {
+    if (!this.searchActive() || this.hasReferenceMonth()) {
+      return;
+    }
+
+    this.searchScope.set('all');
+    this.searchResultsLimit.set(BalancePage.searchResultsPageSize);
+  }
+
+  /**
+   * Increases the number of rendered global search results.
+   */
+  protected loadMoreSearchResults(): void {
+    this.searchResultsLimit.update(
+      (limit) => limit + BalancePage.searchResultsPageSize,
+    );
+  }
+
+  /**
+   * Selects the entry collection used by the current search mode.
+   *
+   * @param normalizedTerm Search term normalized for comparison.
+   * @returns Entries available to the visible list pipeline.
+   */
+  private resolveSearchBaseEntries(normalizedTerm: string): EntryData[] {
+    if (
+      normalizedTerm.length > 0
+      && this.searchScope() === 'all'
+      && !this.hasReferenceMonth()
+    ) {
+      return this.entryService.entriesSignal();
+    }
+
+    return this.visibleEntries();
+  }
+
+  /**
+   * Restores the current Balance date window using today's Chilean date.
+   */
+  private resetVisibleRange(): void {
+    const referenceDate = new Date();
+
+    this.visibleStartDayKey.set(this.getInitialVisibleStartDayKey(referenceDate));
+    this.visibleEndDayKey.set(this.getCurrentMonthEndDayKey(referenceDate));
+  }
+
+  /**
+   * Restores visible-only search mode and its result limit.
+   */
+  private resetSearchScope(): void {
+    this.searchScope.set('visible');
+    this.searchResultsLimit.set(BalancePage.searchResultsPageSize);
+  }
+
+  /**
+   * Calculates the first visible day for the current Balance list.
+   *
+   * @param referenceDate Date used to resolve the current Chilean month.
+   * @returns The first visible day key.
+   */
+  private getInitialVisibleStartDayKey(referenceDate: Date): string {
+    const parts = this.getChileDateParts(referenceDate);
+
+    if (parts.day < 5) {
+      return this.getPreviousMonthTailStartDayKey(parts.year, parts.month);
+    }
+
+    return this.buildDayKey(parts.year, parts.month, 1);
+  }
+
+  /**
+   * Calculates the last day of the Chilean month that contains the provided date.
+   *
+   * @param referenceDate Date used to resolve the current Chilean month.
+   * @returns The month end day key.
+   */
+  private getCurrentMonthEndDayKey(referenceDate: Date): string {
+    const { year, month } = this.getChileDateParts(referenceDate);
+    const lastDay = this.getMonthLastDay(year, month);
+
+    return this.buildDayKey(year, month, lastDay);
+  }
+
+  /**
+   * Calculates the first of the last five days from the previous month.
+   *
+   * @param currentYear Chilean calendar year of the current month.
+   * @param currentMonth Chilean calendar month starting at 1.
+   * @returns The day key that starts the previous month tail.
+   */
+  private getPreviousMonthTailStartDayKey(currentYear: number, currentMonth: number): string {
+    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const previousMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const lastDay = this.getMonthLastDay(previousMonthYear, previousMonth);
+
+    return this.buildDayKey(
+      previousMonthYear,
+      previousMonth,
+      lastDay - BalancePage.loadMoreDays + 1,
+    );
+  }
+
+  /**
+   * Checks whether an entry belongs to the current visible date window.
+   *
+   * @param entry Entry to evaluate.
+   * @returns True when the entry day is inside the visible range.
+   */
+  private isEntryInsideVisibleRange(entry: EntryData): boolean {
+    const dayKey = this.getEntryDayKey(entry);
+
+    return dayKey >= this.visibleStartDayKey()
+      && dayKey <= this.visibleEndDayKey();
+  }
+
+  /**
+   * Checks whether an entry is older than the current visible date window.
+   *
+   * @param entry Entry to evaluate.
+   * @returns True when the entry day is before the visible start day.
+   */
+  private isEntryBeforeVisibleRange(entry: EntryData): boolean {
+    return this.getEntryDayKey(entry) < this.visibleStartDayKey();
+  }
+
+  /**
+   * Extracts an entry Chilean calendar key.
+   *
+   * @param entry Entry with an ISO occurrence date.
+   * @returns The date key used for visible range comparisons.
+   */
+  private getEntryDayKey(entry: EntryData): string {
+    const { year, month, day } = this.getChileDateParts(new Date(entry.date));
+
+    return this.buildDayKey(year, month, day);
+  }
+
+  /**
+   * Sorts entries by occurrence date from newest to oldest.
+   *
+   * @param entries Entries to sort.
+   * @returns A sorted copy of the provided entries.
+   */
+  private sortEntriesByDateDescending(entries: EntryData[]): EntryData[] {
+    return [...entries].sort(
+      (a, b) => this.normalizeToMillis(b.date) - this.normalizeToMillis(a.date),
+    );
+  }
+
+  /**
+   * Extracts Chilean calendar parts from a date.
+   *
+   * @param date Date to inspect.
+   * @returns Numeric year, month, and day in Chile's timezone.
+   */
+  private getChileDateParts(date: Date): { year: number; month: number; day: number } {
+    const parts = new Map(
+      this.dayKeyFormatter
+        .formatToParts(date)
+        .map((part) => [part.type, part.value]),
+    );
+
+    return {
+      year: Number(parts.get('year') ?? 0),
+      month: Number(parts.get('month') ?? 1),
+      day: Number(parts.get('day') ?? 1),
+    };
+  }
+
+  /**
+   * Moves a calendar day key by the requested number of days.
+   *
+   * @param dayKey Date key using YYYY-MM-DD format.
+   * @param days Amount of calendar days to add or subtract.
+   * @returns The shifted day key.
+   */
+  private shiftDayKey(dayKey: string, days: number): string {
+    const [year, month, day] = dayKey.split('-').map(Number);
+    const shifted = new Date(Date.UTC(year, month - 1, day));
+    shifted.setUTCDate(shifted.getUTCDate() + days);
+
+    return this.buildDayKey(
+      shifted.getUTCFullYear(),
+      shifted.getUTCMonth() + 1,
+      shifted.getUTCDate(),
+    );
+  }
+
+  /**
+   * Builds a sortable date key.
+   *
+   * @param year Full calendar year.
+   * @param month Calendar month starting at 1.
+   * @param day Calendar day of month.
+   * @returns A zero-padded date key.
+   */
+  private buildDayKey(year: number, month: number, day: number): string {
+    return [
+      year.toString().padStart(4, '0'),
+      month.toString().padStart(2, '0'),
+      day.toString().padStart(2, '0'),
+    ].join('-');
+  }
+
+  /**
+   * Gets the last day number for the provided calendar month.
+   *
+   * @param year Full calendar year.
+   * @param month Calendar month starting at 1.
+   * @returns Last day number for the month.
+   */
+  private getMonthLastDay(year: number, month: number): number {
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
   /**
@@ -386,6 +662,15 @@ export class BalancePage {
 
     const amountLabel = this.normalizeSearchText(this.formatAmount(entry.amount));
     if (amountLabel.includes(term)) {
+      return true;
+    }
+
+    const normalizedAmountLabel = this.normalizeAmountSearchText(amountLabel);
+    const normalizedAmountTerm = this.normalizeAmountSearchText(term);
+    if (
+      normalizedAmountTerm.length > 0
+      && normalizedAmountLabel.includes(normalizedAmountTerm)
+    ) {
       return true;
     }
 
@@ -414,6 +699,16 @@ export class BalancePage {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  /**
+   * Keeps only numeric characters from a search value for amount comparisons.
+   *
+   * @param value Text to normalize as an amount search value.
+   * @returns Numeric search text without currency symbols or separators.
+   */
+  private normalizeAmountSearchText(value: string): string {
+    return value.replace(/\D/g, '');
   }
 
   /**

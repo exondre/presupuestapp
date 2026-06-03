@@ -55,7 +55,7 @@ ion-toolbar {
 .trends-chart-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 1rem 1.25rem 1.5rem;
+  padding: .5rem 1.25rem .5rem;
 }
 
 .trends-chart {
@@ -63,8 +63,14 @@ ion-toolbar {
   align-items: flex-end;
   gap: 4px;
   height: 240px;
-  padding-bottom: 2rem;
+  padding-bottom: 1rem;
   position: relative;
+
+  &__end-spacer {
+    flex: 0 0 1.25rem;
+    align-self: stretch;
+    pointer-events: none;
+  }
 }
 
 .trends-month {
@@ -94,7 +100,7 @@ ion-toolbar {
     &::before {
       content: '';
       position: absolute;
-      inset: -8px -4px -2rem;
+      inset: -8px -4px -1rem;
       background: rgba(255, 115, 32, 0.07);
       border-radius: var(--radius-md);
       z-index: 0;
@@ -110,7 +116,7 @@ ion-toolbar {
     &::before {
       content: '';
       position: absolute;
-      inset: -8px -4px -2rem;
+      inset: -8px -4px -1rem;
       background: rgba(114, 32, 255, 0.08);
       border: 1.5px solid rgba(114, 32, 255, 0.18);
       border-radius: var(--radius-md);
@@ -174,7 +180,7 @@ ion-toolbar {
 }
 
 .trends-detail {
-  padding: 0 1.25rem 1.5rem;
+  padding: 0 .75rem 1.5rem;
   animation: fadeSlideIn 0.25s ease-out;
 
   &__title-row {
@@ -202,16 +208,47 @@ ion-toolbar {
   }
 
   &__section {
-    margin-bottom: 0.75rem;
+    // margin-bottom: 0.75rem;
     padding: 0.75rem;
-    background: var(--ion-color-light);
+    // background: var(--ion-color-light);
     border-radius: var(--radius-md);
   }
 
   &__section-header {
     display: flex;
+    width: 100%;
     align-items: center;
     gap: 0.5rem;
+    padding: 0;
+    border: 0;
+    appearance: none;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: inherit;
+
+    &:focus-visible {
+      outline: 2px solid var(--ion-color-primary);
+      outline-offset: 4px;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  &__section-icon {
+    flex-shrink: 0;
+    color: var(--ion-color-medium);
+    font-size: 1rem;
+    transition: transform 180ms ease, color 180ms ease;
+  }
+
+  &__section-header--expanded &__section-icon {
+    color: var(--ion-color-tertiary);
+    transform: rotate(180deg);
+  }
+
+  &__section-body {
+    animation: fadeSlideIn 0.18s ease-out;
   }
 
   &__dot {
@@ -238,7 +275,7 @@ ion-toolbar {
   }
 
   &__section-label {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     font-weight: 500;
     color: var(--ion-color-medium);
     flex: 1;
@@ -252,10 +289,19 @@ ion-toolbar {
 
   &__entry {
     display: flex;
+    width: 100%;
     align-items: center;
     gap: 0.5rem;
     padding: 0.4rem 0 0.4rem 1.25rem;
     border-top: 1px solid rgba(0, 0, 0, 0.04);
+    appearance: none;
+    background: none;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
 
     &:first-of-type {
       margin-top: 0.5rem;
@@ -264,6 +310,15 @@ ion-toolbar {
     &--more {
       opacity: 0.7;
       font-style: italic;
+    }
+
+    &--button {
+      cursor: pointer;
+
+      &:focus-visible {
+        outline: 2px solid var(--ion-color-primary);
+        outline-offset: 2px;
+      }
     }
   }
 

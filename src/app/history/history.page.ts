@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -28,13 +28,12 @@ import { UtilsService } from '../shared/services/utils.service';
     IonHeader,
     IonTitle,
     IonToolbar,
-    CommonModule,
     FormsModule,
     IonList,
     IonItem,
     IonLabel,
-    IonIcon,
-  ],
+    IonIcon
+],
 })
 export class HistoryPage {
   private readonly entryService = inject(EntryService);
@@ -71,14 +70,9 @@ export class HistoryPage {
    * @param item Month summary descriptor used to derive the reference date.
    */
   protected handleMonthSelected(item: MonthSummaryListItem): void {
-    const referenceMonth = new Date(item.year, item.month - 1, 1);
-
-    void this.navController.navigateForward('/tabs/history/detail', {
-      queryParams: {
-        year: referenceMonth.getFullYear(),
-        month: referenceMonth.getMonth() + 1,
-      },
-    });
+    void this.navController.navigateForward(
+      `/tabs/history/detail/${item.year}/${item.month}`,
+    );
   }
 
   /**
