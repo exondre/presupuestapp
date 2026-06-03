@@ -25,14 +25,16 @@
 
       <!-- Self-transfers section — only shown when detected -->
       @if (selfTransfers().length > 0) {
-        <div class="import-review-section">
-          <ion-text color="dark" class="import-review-section__title">
-            <h3>Transferencias entre cuentas propias</h3>
-          </ion-text>
-          <ion-text color="medium" class="import-review-section__subtitle">
-            <p>Estas transacciones parecen ser entre tus propias cuentas. Se ignoran por defecto para no afectar tu balance.</p>
-          </ion-text>
-          <ion-list lines="full" class="import-review-list">
+        <section class="import-review-panel import-review-panel--self-transfers">
+          <header class="import-review-panel__header">
+            <p class="import-review-panel__eyebrow">Revisión automática</p>
+            <h3 class="import-review-panel__title">Transferencias entre cuentas propias</h3>
+            <p class="import-review-panel__subtitle">
+              Estas transacciones parecen ser entre tus propias cuentas. Se ignoran por defecto para no afectar tu balance.
+            </p>
+          </header>
+
+          <ion-list lines="none" class="import-review-list">
             @for (st of selfTransfers(); track st.entry) {
               <ion-item class="import-review-item import-review-item--compact">
                 <ion-label>
@@ -56,24 +58,24 @@
               </ion-item>
             }
           </ion-list>
-        </div>
+        </section>
       }
 
       <!-- Potential Duplicates (main review area) -->
-      <div class="import-review-section">
-        <ion-text color="dark" class="import-review-section__title">
-          <h3>Posibles duplicados</h3>
-        </ion-text>
+      <section class="import-review-panel import-review-panel--duplicates">
+        <header class="import-review-panel__header">
+          <h3 class="import-review-panel__title">Posibles duplicados</h3>
+        </header>
 
         @if (potentialDuplicates().length === 0) {
-          <div class="import-review-empty ion-padding">
+          <div class="import-review-panel__empty">
             <ion-text color="medium">
               <p>No hay posibles duplicados por revisar.</p>
             </ion-text>
           </div>
         }
 
-        <ion-list lines="full" class="import-review-list">
+        <ion-list lines="none" class="import-review-list">
           @for (duplicate of potentialDuplicates(); track duplicate.importedEntry) {
             <ion-item class="import-review-item">
               <ion-label>
@@ -120,24 +122,27 @@
             </ion-item>
           }
         </ion-list>
-      </div>
+      </section>
 
       <!-- Accordion sections -->
-      <ion-accordion-group [multiple]="true" class="import-review-accordions">
+      <section class="import-review-panel import-review-panel--buckets">
+        <ion-accordion-group [multiple]="true" class="import-review-accordions">
         <!-- Discarded entries -->
-        <ion-accordion value="discarded">
-          <ion-item slot="header" color="light">
-            <ion-label>Descartados por duplicado ({{ discardedCount() }})</ion-label>
+          <ion-accordion value="discarded" class="import-review-accordion">
+          <ion-item slot="header" class="import-review-accordion__header">
+            <ion-label>
+              <h3>Descartados por duplicado ({{ discardedCount() }})</h3>
+            </ion-label>
           </ion-item>
-          <div slot="content">
+          <div slot="content" class="import-review-accordion__content">
             @if (discardedEntries().length === 0) {
-              <div class="import-review-empty ion-padding">
+              <div class="import-review-panel__empty">
                 <ion-text color="medium">
                   <p>No hay registros descartados.</p>
                 </ion-text>
               </div>
             }
-            <ion-list lines="full" class="import-review-list import-review-list--compact">
+            <ion-list lines="none" class="import-review-list import-review-list--compact">
               @for (entry of discardedEntries(); track entry) {
                 <ion-item class="import-review-item import-review-item--compact">
                   <ion-label>
@@ -164,22 +169,24 @@
               }
             </ion-list>
           </div>
-        </ion-accordion>
+          </ion-accordion>
 
         <!-- Ready to import entries -->
-        <ion-accordion value="ready">
-          <ion-item slot="header" color="light">
-            <ion-label>Listos para importar ({{ displayReadyToImport().length }})</ion-label>
+          <ion-accordion value="ready" class="import-review-accordion">
+          <ion-item slot="header" class="import-review-accordion__header">
+            <ion-label>
+              <h3>Listos para importar ({{ displayReadyToImport().length }})</h3>
+            </ion-label>
           </ion-item>
-          <div slot="content">
+          <div slot="content" class="import-review-accordion__content">
             @if (displayReadyToImport().length === 0) {
-              <div class="import-review-empty ion-padding">
+              <div class="import-review-panel__empty">
                 <ion-text color="medium">
                   <p>No hay registros listos para importar.</p>
                 </ion-text>
               </div>
             }
-            <ion-list lines="full" class="import-review-list import-review-list--compact">
+            <ion-list lines="none" class="import-review-list import-review-list--compact">
               @for (entry of displayReadyToImport(); track entry) {
                 <ion-item class="import-review-item import-review-item--compact">
                   <ion-label>
@@ -206,8 +213,9 @@
               }
             </ion-list>
           </div>
-        </ion-accordion>
-      </ion-accordion-group>
+          </ion-accordion>
+        </ion-accordion-group>
+      </section>
 
       <!-- Confirm import button -->
       <div class="import-review-footer ion-padding">
