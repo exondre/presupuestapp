@@ -190,7 +190,9 @@ export function buildTrendsData(
   const currentKey = buildMonthKey(now);
   const current = parseMonthKey(currentKey);
 
-  const start = addMonths(current.month, current.year, -2);
+  const sortedInputMonthKeys = Array.from(monthEntriesMap.keys()).sort();
+  const firstInputMonthKey = sortedInputMonthKeys[0] ?? currentKey;
+  const start = parseMonthKey(firstInputMonthKey);
   const lastInstallment = resolveLastInstallmentMonth(allEntries);
   const end = lastInstallment && compareMonths(lastInstallment, current) > 0
     ? lastInstallment
@@ -357,6 +359,7 @@ function projectEntryOccurrences(
  * A single item to display in the month detail panel.
  */
 export interface MonthDetailEntry {
+  id?: string;
   description: string;
   amount: number;
   installmentLabel?: string;
@@ -472,19 +475,22 @@ export function buildMonthDetailData(
 
   const categorized = categorizeMonthEntries(monthEntries);
 
-  const incomeEntries = toDetailEntries(categorized.income);
+  const incomeEntries = toDetailEntries(categorized.income)
+    .sort((a, b) => b.amount - a.amount);
   const incomeTotal = incomeEntries.reduce((sum, e) => sum + e.amount, 0);
 
   const commonSorted = toDetailEntries(categorized.common)
     .sort((a, b) => b.amount - a.amount);
   const commonTotal = commonSorted.reduce((sum, e) => sum + e.amount, 0);
-  const topEntries = commonSorted.slice(0, 3);
+  const topEntries = commonSorted.slice(0, 5);
   const remainingCount = Math.max(0, commonSorted.length - 3);
 
-  const recurringEntries = toDetailEntries(categorized.recurring);
+  const recurringEntries = toDetailEntries(categorized.recurring)
+    .sort((a, b) => b.amount - a.amount);
   const recurringTotal = recurringEntries.reduce((sum, e) => sum + e.amount, 0);
 
-  const installmentEntries = toInstallmentDetailEntries(categorized.installment);
+  const installmentEntries = toInstallmentDetailEntries(categorized.installment)
+    .sort((a, b) => b.amount - a.amount);
   const installmentTotal = installmentEntries.reduce((sum, e) => sum + e.amount, 0);
 
   return {
@@ -506,6 +512,7 @@ export function buildMonthDetailData(
  */
 function toDetailEntries(entries: EntryData[]): MonthDetailEntry[] {
   return entries.map((entry) => ({
+    id: entry.id,
     description: (entry.description ?? '').trim() || 'Sin descripción',
     amount: entry.amount,
     isProjected: false,
@@ -522,6 +529,7 @@ function toInstallmentDetailEntries(entries: EntryData[]): MonthDetailEntry[] {
   return entries.map((entry) => {
     const details = resolveInstallmentDisplayDetailsFromEntry(entry);
     return {
+      id: entry.id,
       description: (entry.description ?? '').trim() || 'Sin descripción',
       amount: entry.amount,
       installmentLabel: details?.installmentLabel,

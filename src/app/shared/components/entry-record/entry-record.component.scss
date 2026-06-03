@@ -1,0 +1,115 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.entry-record {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 12px;
+  padding: 0.5rem 0;
+
+  &__indicator {
+    width: 4px;
+    height: 32px;
+    border-radius: 2px;
+    flex: 0 0 auto;
+
+    &--income {
+      background: var(--ion-color-success);
+    }
+
+    &--expense {
+      background: var(--ion-color-danger);
+    }
+  }
+
+  &__content {
+    display: block;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__description {
+    display: block;
+    overflow: hidden;
+    color: var(--ion-color-dark);
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    text-transform: capitalize;
+    white-space: wrap;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 0.25rem;
+    margin-top: 0.15rem;
+    color: var(--ion-color-medium);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    text-transform: none;
+  }
+
+  &__meta-date,
+  &__meta-installment,
+  &__meta-recurring,
+  &__meta-time {
+    white-space: nowrap;
+  }
+
+  &__meta-installment {
+    color: var(--ion-color-medium-shade);
+    font-weight: 500;
+  }
+
+  &__meta-recurring {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--ion-color-medium);
+
+    ion-icon {
+      font-size: 0.78rem;
+    }
+  }
+
+  &__amount {
+    flex: 0 0 auto;
+    color: var(--ion-color-dark);
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+
+    &--income {
+      color: var(--ion-color-success);
+    }
+
+    &--expense {
+      color: var(--ion-color-danger);
+    }
+  }
+
+  &--compact {
+    min-height: 50px;
+    padding: 0.35rem 0;
+
+    .entry-record__indicator {
+      height: 28px;
+    }
+
+    .entry-record__description {
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+
+    .entry-record__amount {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+  }
+}

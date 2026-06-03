@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <div class="trends-chart-scroll">
+    <div #chartScroll class="trends-chart-scroll">
       <div class="trends-chart">
         @for (month of data.months; track month.monthKey) {
           <button type="button"
@@ -76,6 +76,7 @@
             </span>
           </button>
         }
+        <span class="trends-chart__end-spacer" aria-hidden="true"></span>
       </div>
     </div>
 
@@ -88,68 +89,152 @@
           }
         </div>
 
+        @if (!detail.isFutureMonth) {
         <div class="trends-detail__section">
-          <div class="trends-detail__section-header">
+          <button
+            type="button"
+            class="trends-detail__section-header"
+            [class.trends-detail__section-header--expanded]="isDetailSectionExpanded('income')"
+            [attr.aria-expanded]="isDetailSectionExpanded('income')"
+            aria-controls="trends-income-detail"
+            (click)="toggleDetailSection('income')"
+          >
             <span class="trends-detail__dot trends-detail__dot--income"></span>
             <span class="trends-detail__section-label">Total de ingresos</span>
             <span class="trends-detail__section-amount">{{ formatAmount(detail.income.total) }}</span>
-          </div>
-          @for (entry of detail.income.entries; track $index) {
-            <div class="trends-detail__entry">
-              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
-              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+            <ion-icon
+              class="trends-detail__section-icon"
+              name="chevron-down-outline"
+              aria-hidden="true"
+            ></ion-icon>
+          </button>
+          @if (isDetailSectionExpanded('income')) {
+            <div id="trends-income-detail" class="trends-detail__section-body">
+              @for (entry of detail.income.entries; track entry.id) {
+                <button
+                  type="button"
+                  class="trends-detail__entry trends-detail__entry--button"
+                  (click)="handleMonthDetailEntrySelected(entry)"
+                >
+                  <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+                  <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+                </button>
+              }
             </div>
           }
         </div>
 
         <div class="trends-detail__section">
-          <div class="trends-detail__section-header">
+          <button
+            type="button"
+            class="trends-detail__section-header"
+            [class.trends-detail__section-header--expanded]="isDetailSectionExpanded('commonExpense')"
+            [attr.aria-expanded]="isDetailSectionExpanded('commonExpense')"
+            aria-controls="trends-common-expense-detail"
+            (click)="toggleDetailSection('commonExpense')"
+          >
             <span class="trends-detail__dot trends-detail__dot--common"></span>
             <span class="trends-detail__section-label">Total de gastos</span>
             <span class="trends-detail__section-amount">{{ formatAmount(detail.commonExpense.total) }}</span>
-          </div>
-          @for (entry of detail.commonExpense.topEntries; track $index) {
-            <div class="trends-detail__entry">
-              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
-              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
-            </div>
-          }
-          @if (detail.commonExpense.remainingCount > 0) {
-            <div class="trends-detail__entry trends-detail__entry--more">
-              <span class="trends-detail__entry-desc">
-                y {{ detail.commonExpense.remainingCount }} más
-              </span>
+            <ion-icon
+              class="trends-detail__section-icon"
+              name="chevron-down-outline"
+              aria-hidden="true"
+            ></ion-icon>
+          </button>
+          @if (isDetailSectionExpanded('commonExpense')) {
+            <div id="trends-common-expense-detail" class="trends-detail__section-body">
+              @for (entry of detail.commonExpense.topEntries; track entry.id) {
+                <button
+                  type="button"
+                  class="trends-detail__entry trends-detail__entry--button"
+                  (click)="handleMonthDetailEntrySelected(entry)"
+                >
+                  <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+                  <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+                </button>
+              }
+              @if (detail.commonExpense.remainingCount > 0) {
+                <div class="trends-detail__entry trends-detail__entry--more">
+                  <span class="trends-detail__entry-desc">
+                    y {{ detail.commonExpense.remainingCount }} más
+                  </span>
+                </div>
+              }
             </div>
           }
         </div>
 
         <div class="trends-detail__section">
-          <div class="trends-detail__section-header">
+          <button
+            type="button"
+            class="trends-detail__section-header"
+            [class.trends-detail__section-header--expanded]="isDetailSectionExpanded('recurringExpense')"
+            [attr.aria-expanded]="isDetailSectionExpanded('recurringExpense')"
+            aria-controls="trends-recurring-expense-detail"
+            (click)="toggleDetailSection('recurringExpense')"
+          >
             <span class="trends-detail__dot trends-detail__dot--recurring"></span>
             <span class="trends-detail__section-label">Total de gastos recurrentes</span>
             <span class="trends-detail__section-amount">{{ formatAmount(detail.recurringExpense.total) }}</span>
-          </div>
-          @for (entry of detail.recurringExpense.entries; track $index) {
-            <div class="trends-detail__entry">
-              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
-              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+            <ion-icon
+              class="trends-detail__section-icon"
+              name="chevron-down-outline"
+              aria-hidden="true"
+            ></ion-icon>
+          </button>
+          @if (isDetailSectionExpanded('recurringExpense')) {
+            <div id="trends-recurring-expense-detail" class="trends-detail__section-body">
+              @for (entry of detail.recurringExpense.entries; track entry.id) {
+                <button
+                  type="button"
+                  class="trends-detail__entry trends-detail__entry--button"
+                  (click)="handleMonthDetailEntrySelected(entry)"
+                >
+                  <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+                  <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+                </button>
+              }
             </div>
           }
         </div>
+        }
 
         <div class="trends-detail__section">
-          <div class="trends-detail__section-header">
+          <button
+            type="button"
+            class="trends-detail__section-header"
+            [class.trends-detail__section-header--expanded]="isDetailSectionExpanded('installmentExpense')"
+            [attr.aria-expanded]="isDetailSectionExpanded('installmentExpense')"
+            aria-controls="trends-installment-expense-detail"
+            (click)="toggleDetailSection('installmentExpense')"
+          >
             <span class="trends-detail__dot trends-detail__dot--installment"></span>
             <span class="trends-detail__section-label">Total de gastos con cuotas</span>
             <span class="trends-detail__section-amount">{{ formatAmount(detail.installmentExpense.total) }}</span>
-          </div>
-          @for (entry of detail.installmentExpense.entries; track $index) {
-            <div class="trends-detail__entry">
-              <span class="trends-detail__entry-desc">{{ entry.description }}</span>
-              @if (entry.installmentLabel) {
-                <span class="trends-detail__entry-installment">{{ entry.installmentLabel }}</span>
+            <ion-icon
+              class="trends-detail__section-icon"
+              name="chevron-down-outline"
+              aria-hidden="true"
+            ></ion-icon>
+          </button>
+          @if (isDetailSectionExpanded('installmentExpense')) {
+            <div id="trends-installment-expense-detail" class="trends-detail__section-body">
+              @for (entry of detail.installmentExpense.entries; track entry.id ?? entry.description) {
+                <button
+                  type="button"
+                  class="trends-detail__entry"
+                  [class.trends-detail__entry--button]="entry.id && !entry.isProjected"
+                  [disabled]="!entry.id || entry.isProjected"
+                  (click)="handleMonthDetailEntrySelected(entry)"
+                >
+                  <span class="trends-detail__entry-desc">{{ entry.description }}</span>
+                  @if (entry.installmentLabel) {
+                    <span class="trends-detail__entry-installment">{{ entry.installmentLabel }}</span>
+                  }
+                  <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
+                </button>
               }
-              <span class="trends-detail__entry-amount">{{ formatAmount(entry.amount) }}</span>
             </div>
           }
         </div>
