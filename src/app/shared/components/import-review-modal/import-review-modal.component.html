@@ -198,6 +198,23 @@
                         · Cuota {{ entry.installmentInfo.current }} de {{ entry.installmentInfo.total }}
                       }
                     </p>
+                    @if (isDeferredToNextMonth(entry)) {
+                      <ion-note class="import-review-item__accounting-note">
+                        <span>Se importará el {{ formatNextAccountingDate(entry.date) }}</span>
+                        <span>Fecha original: {{ formatOriginalShortDate(entry.date) }}</span>
+                      </ion-note>
+                    }
+                    <div class="import-review-item__accounting-actions">
+                      <ion-button
+                        size="small"
+                        fill="clear"
+                        [color]="isDeferredToNextMonth(entry) ? 'primary' : 'medium'"
+                        (click)="toggleDeferredToNextMonth(entry)"
+                      >
+                        <ion-icon slot="start" name="calendar-outline"></ion-icon>
+                        {{ isDeferredToNextMonth(entry) ? 'Volver a ' + formatAccountingMonth(entry.date) : 'Pasar al mes siguiente' }}
+                      </ion-button>
+                    </div>
                   </ion-label>
                   <ion-button
                     slot="end"

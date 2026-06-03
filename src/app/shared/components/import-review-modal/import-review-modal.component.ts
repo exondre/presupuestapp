@@ -30,6 +30,7 @@ import {
   addCircleOutline,
   checkmarkCircleOutline,
   closeCircleOutline,
+  calendarOutline,
   refreshOutline,
   removeCircleOutline,
   swapHorizontalOutline,
@@ -101,7 +102,9 @@ export class ImportReviewModalComponent {
   protected readonly discardedEntries = signal<ParsedEntry[]>([]);
   protected readonly readyToImport = signal<ParsedEntry[]>([]);
   protected readonly selfTransfers = signal<SelfTransferEntry[]>([]);
+  protected readonly deferredEntries = signal<Set<ParsedEntry>>(new Set());
   private readonly confirmedDuplicates = signal<PotentialDuplicate[]>([]);
+  private static readonly chileTimeZone = 'America/Santiago';
 
   protected readonly readyCount = computed(() => this.readyToImport().length);
   protected readonly potentialCount = computed(() => this.potentialDuplicates().length);
@@ -126,6 +129,7 @@ export class ImportReviewModalComponent {
       'remove-circle-outline': removeCircleOutline,
       'close-circle-outline': closeCircleOutline,
       'checkmark-circle-outline': checkmarkCircleOutline,
+      'calendar-outline': calendarOutline,
       'swap-horizontal-outline': swapHorizontalOutline,
       'refresh-outline': refreshOutline,
     });
@@ -137,6 +141,7 @@ export class ImportReviewModalComponent {
       this.readyToImport.set([...result.readyToImport]);
       this.selfTransfers.set([...(result.selfTransfers ?? []).map((st) => ({ ...st }))]);
       this.confirmedDuplicates.set([]);
+      this.deferredEntries.set(new Set());
     });
   }
 
@@ -183,6 +188,38 @@ export class ImportReviewModalComponent {
   protected removeFromReady(entry: ParsedEntry): void {
     this.readyToImport.update((list) => list.filter((e) => e !== entry));
     this.discardedEntries.update((list) => [...list, entry]);
+    this.deferredEntries.update((entries) => {
+      const next = new Set(entries);
+      next.delete(entry);
+      return next;
+    });
+  }
+
+  /**
+   * Toggles whether a ready entry should be accounted in the next month.
+   *
+   * @param entry The ready entry to toggle.
+   */
+  protected toggleDeferredToNextMonth(entry: ParsedEntry): void {
+    this.deferredEntries.update((entries) => {
+      const next = new Set(entries);
+      if (next.has(entry)) {
+        next.delete(entry);
+      } else {
+        next.add(entry);
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Checks whether a ready entry will be accounted in the next month.
+   *
+   * @param entry The entry to inspect.
+   * @returns True when the entry is marked for next-month accounting.
+   */
+  protected isDeferredToNextMonth(entry: ParsedEntry): boolean {
+    return this.deferredEntries().has(entry);
   }
 
   /**
@@ -205,7 +242,9 @@ export class ImportReviewModalComponent {
         .filter((st) => st.ignored)
         .map((st) => st.entry),
     );
-    const filteredReady = this.readyToImport().filter((e) => !ignoredEntries.has(e));
+    const filteredReady = this.readyToImport()
+      .filter((e) => !ignoredEntries.has(e))
+      .map((entry) => this.applyAccountingDateOverride(entry));
     this.importConfirmed.emit({
       entriesToImport: [...filteredReady],
       confirmedDuplicates: [...this.confirmedDuplicates()],
@@ -230,7 +269,134 @@ export class ImportReviewModalComponent {
     return date.toLocaleDateString('es-CL', {
       day: '2-digit',
       month: 'short',
+      timeZone: ImportReviewModalComponent.chileTimeZone,
       year: 'numeric',
     });
+  }
+
+  /**
+   * Formats the next accounting date for an imported entry.
+   *
+   * @param dateStr ISO date string from the imported entry.
+   * @returns Localized first day of the next accounting month.
+   */
+  protected formatNextAccountingDate(dateStr: string): string {
+    return this.formatDate(this.getNextMonthAccountingDate(dateStr));
+  }
+
+  /**
+   * Formats the short imported date that will be appended to the description.
+   *
+   * @param dateStr ISO date string from the imported entry.
+   * @returns Short localized date in dd/mm format.
+   */
+  protected formatOriginalShortDate(dateStr: string): string {
+    const parts = this.getChileDateParts(dateStr);
+    return `${String(parts.day).padStart(2, '0')}/${String(parts.month).padStart(2, '0')}`;
+  }
+
+  /**
+   * Formats the month where an entry currently belongs in accounting terms.
+   *
+   * @param dateStr ISO date string from the imported entry.
+   * @returns Localized month and year label.
+   */
+  protected formatAccountingMonth(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-CL', {
+      month: 'short',
+      year: 'numeric',
+      timeZone: ImportReviewModalComponent.chileTimeZone,
+    });
+  }
+
+  /**
+   * Returns the ISO date for the first day of the month after the imported date.
+   *
+   * @param dateStr ISO date string from the imported entry.
+   * @returns ISO date string for the next accounting month start.
+   */
+  protected getNextMonthAccountingDate(dateStr: string): string {
+    const parts = this.getChileDateParts(dateStr);
+    const nextMonthIndex = parts.month === 12 ? 0 : parts.month;
+    const nextYear = parts.month === 12 ? parts.year + 1 : parts.year;
+    return this.createChileLocalDateIso(nextYear, nextMonthIndex, 1);
+  }
+
+  /**
+   * Applies the next-month accounting override when the entry is marked for it.
+   *
+   * @param entry The entry approved for import.
+   * @returns The original entry or a copied entry with accounting date override.
+   */
+  private applyAccountingDateOverride(entry: ParsedEntry): ParsedEntry {
+    if (!this.isDeferredToNextMonth(entry)) {
+      return entry;
+    }
+
+    return {
+      ...entry,
+      date: this.getNextMonthAccountingDate(entry.date),
+      description: `${entry.description || 'Sin descripción'} (${this.formatOriginalShortDate(entry.date)})`,
+    };
+  }
+
+  /**
+   * Extracts calendar date parts in the app timezone.
+   *
+   * @param dateStr ISO date string to read.
+   * @returns Year, one-based month and day in America/Santiago.
+   */
+  private getChileDateParts(dateStr: string): { year: number; month: number; day: number } {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: ImportReviewModalComponent.chileTimeZone,
+      year: 'numeric',
+    });
+    const parts = formatter.formatToParts(new Date(dateStr));
+    return {
+      day: Number(parts.find((part) => part.type === 'day')?.value),
+      month: Number(parts.find((part) => part.type === 'month')?.value),
+      year: Number(parts.find((part) => part.type === 'year')?.value),
+    };
+  }
+
+  /**
+   * Creates an ISO instant for midnight in America/Santiago.
+   *
+   * @param year Full local year.
+   * @param monthIndex Zero-based local month index.
+   * @param day Local day of month.
+   * @returns ISO date string for that local date at midnight.
+   */
+  private createChileLocalDateIso(year: number, monthIndex: number, day: number): string {
+    const offsetMinutes = this.getChileOffsetMinutes(new Date(Date.UTC(year, monthIndex, day, 12)));
+    return new Date(Date.UTC(year, monthIndex, day) - offsetMinutes * 60_000).toISOString();
+  }
+
+  /**
+   * Gets the America/Santiago UTC offset for a date.
+   *
+   * @param date Date used to resolve daylight saving time.
+   * @returns Offset minutes from UTC.
+   */
+  private getChileOffsetMinutes(date: Date): number {
+    const formatter = new Intl.DateTimeFormat('en', {
+      timeZone: ImportReviewModalComponent.chileTimeZone,
+      timeZoneName: 'shortOffset',
+    });
+    const offset = formatter
+      .formatToParts(date)
+      .find((part) => part.type === 'timeZoneName')
+      ?.value ?? 'GMT-4';
+    const match = /^GMT(?<sign>[+-])(?<hours>\d{1,2})(?::(?<minutes>\d{2}))?$/.exec(offset);
+    if (!match?.groups) {
+      return -240;
+    }
+    const sign = match.groups['sign'] === '+' ? 1 : -1;
+    const hours = Number(match.groups['hours']);
+    const minutes = Number(match.groups['minutes'] ?? 0);
+    return sign * (hours * 60 + minutes);
   }
 }

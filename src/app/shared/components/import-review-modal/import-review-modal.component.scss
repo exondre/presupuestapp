@@ -143,6 +143,30 @@
   flex-wrap: wrap;
 }
 
+.import-review-item__accounting-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-top: 0.35rem;
+  color: var(--ion-color-primary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.import-review-item__accounting-actions {
+  display: flex;
+  margin-top: 0.25rem;
+
+  ion-button {
+    --padding-start: 0;
+    --padding-end: 0.35rem;
+    min-height: 2rem;
+    margin: 0;
+    font-size: 0.78rem;
+  }
+}
+
 .import-review-accordions {
   margin: 0;
   background: transparent;
