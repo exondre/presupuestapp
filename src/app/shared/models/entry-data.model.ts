@@ -17,6 +17,8 @@ export interface EntryData {
   date: string;
   type: EntryType;
   description?: string;
+  /** Original normalized description, saved only when renamed during import review. */
+  originalDescription?: string;
   updatedAt?: string;
   recurrence?: EntryRecurrence;
   idempotencyInfo?: IdempotencyInfo[];

@@ -53,6 +53,7 @@ interface MovementDetailViewModel {
   typeLabel: string;
   amountLabel: string;
   description: string;
+  originalDescription?: string;
   dateLabel: string;
   timeLabel: string;
   updatedAtLabel?: string;
@@ -280,6 +281,7 @@ export class MovementDetailPage {
       typeLabel: entry.type === EntryType.INCOME ? 'Ingreso' : 'Egreso',
       amountLabel: formatEntryAmount(entry.amount),
       description: resolveEntryDescription(entry.description),
+      originalDescription: entry.originalDescription,
       dateLabel: formatEntryDate(occurrenceDate),
       timeLabel: formatEntryTime(occurrenceDate),
       updatedAtLabel: updatedAt ? formatEntryDateTime(updatedAt) : undefined,

@@ -103,6 +103,16 @@
   color: var(--ion-color-dark);
   margin: 0;
   line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.import-review-item__original {
+  color: var(--ion-color-medium);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .import-review-item__meta {
@@ -154,14 +164,17 @@
   white-space: normal;
 }
 
-.import-review-item__accounting-actions {
+.import-review-item__controls {
   display: flex;
-  margin-top: 0.25rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
 
   ion-button {
-    --padding-start: 0;
-    --padding-end: 0.35rem;
-    min-height: 2rem;
+    --padding-start: 0.5rem;
+    --padding-end: 0.5rem;
+    min-height: 44px;
     margin: 0;
     font-size: 0.78rem;
   }
@@ -233,5 +246,12 @@
 @media (max-width: 420px) {
   .import-review-item {
     --padding-end: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .import-review-item__controls ion-button {
+    --padding-start: 0.25rem;
+    --padding-end: 0.25rem;
   }
 }

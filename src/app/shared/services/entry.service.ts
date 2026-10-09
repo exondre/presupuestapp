@@ -22,6 +22,7 @@ type StoredEntry = Partial<EntryData> & {
   description?: string;
   type?: EntryType | string;
   updatedAt?: string;
+  originalNormalizedDescription?: unknown;
 };
 
 /**
@@ -134,6 +135,7 @@ export class EntryService {
       amount: entry.amount,
       date: entry.date,
       description: entry.description,
+      originalDescription: entry.originalDescription,
       type,
       updatedAt: new Date().toISOString(),
     };
@@ -163,6 +165,7 @@ export class EntryService {
         amount: entry.amount,
         date: entry.date,
         description: entry.description,
+        originalDescription: entry.originalDescription,
         type,
         updatedAt: new Date().toISOString(),
         idempotencyInfo: entry.idempotencyInfo,
@@ -1025,6 +1028,7 @@ export class EntryService {
           amount: values.amount,
           date: normalizedDate,
           description: values.description ?? undefined,
+          originalDescription: template.originalDescription,
           type: template.type,
           updatedAt: new Date().toISOString(),
           recurrence: {
@@ -1204,12 +1208,17 @@ export class EntryService {
         ? entry.id
         : this.generateId();
 
+    // Collapse backups from the previous two-field format into the normalized original.
+    const originalDescription = typeof entry.originalNormalizedDescription === 'string'
+      ? entry.originalNormalizedDescription : entry.originalDescription;
+
     const requiresSync =
       dateRequiresSync ||
       id !== entry.id ||
       typeRequiresSync ||
       updatedAtRequiresSync ||
-      recurrenceRequiresSync;
+      recurrenceRequiresSync ||
+      entry.originalNormalizedDescription !== undefined;
 
     return {
       entry: {
@@ -1217,6 +1226,7 @@ export class EntryService {
         amount,
         date: normalizedDate,
         description,
+        ...(typeof originalDescription === 'string' ? { originalDescription } : {}),
         type,
         updatedAt,
         recurrence,
@@ -1498,6 +1508,7 @@ export class EntryService {
         importedEntry.amount === existingEntry.amount &&
         importedEntry.date === existingEntry.date &&
         importedEntry.description === existingEntry.description &&
+        importedEntry.originalDescription === existingEntry.originalDescription &&
         importedEntry.type === existingEntry.type &&
         this.areRecurrencesEqual(
           importedEntry.recurrence,
@@ -1521,7 +1532,12 @@ export class EntryService {
         importedUpdatedAt &&
         (!existingUpdatedAt || importedUpdatedAt > existingUpdatedAt);
 
-      currentEntriesMap.set(importedEntry.id, importedIsMoreRecent ? importedEntry : existingEntry);
+      const selectedEntry = importedIsMoreRecent ? importedEntry : existingEntry;
+      currentEntriesMap.set(importedEntry.id, {
+        ...selectedEntry,
+        originalDescription: selectedEntry.originalDescription ??
+          existingEntry.originalDescription ?? importedEntry.originalDescription,
+      });
       updated += 1;
     });
 

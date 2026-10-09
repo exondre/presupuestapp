@@ -9,6 +9,7 @@ import { UserInfo } from '../models/user-info.model';
 export interface ParsedEntry {
   date: string;
   description: string;
+  originalDescription?: string;
   amount: number;
   type: EntryType;
   idempotencyInfo: IdempotencyInfo[];
@@ -245,6 +246,7 @@ export class ExternalEntryImportService {
         const entry: ParsedEntry = {
           date: transactionDate,
           description: displayDescription,
+          originalDescription: displayDescription,
           amount,
           type,
           idempotencyInfo: [this.generateIdempotencyInfo(transactionDate, normalizedDescription, amount, type)],
@@ -440,6 +442,7 @@ export class ExternalEntryImportService {
         const entry: ParsedEntry = {
           date: transactionDate,
           description,
+          originalDescription: description,
           amount,
           type,
           idempotencyInfo: [this.generateIdempotencyInfo(transactionDate, description, amount, type)],
@@ -719,6 +722,7 @@ export class ExternalEntryImportService {
       amount: parsed.amount,
       date: parsed.date,
       description: parsed.description,
+      originalDescription: parsed.originalDescription,
       type: parsed.type,
       idempotencyInfo: parsed.idempotencyInfo,
       recurrence: parsed.recurrence,

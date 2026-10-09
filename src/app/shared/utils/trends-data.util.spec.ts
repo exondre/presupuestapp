@@ -118,6 +118,27 @@ function buildMonthMap(
 }
 
 describe('trends data util', () => {
+  it('uses renamed descriptions for actual and projected installments without changing chart totals', () => {
+    const original = buildInstallmentEntry('2026-10-01T12:00:00.000Z', 0, 3, 1000);
+    original.description = 'TIENDA';
+    const renamed = {
+      ...original,
+      description: 'Computador',
+      originalDescription: 'TIENDA',
+    };
+    const now = new Date('2026-10-09T12:00:00.000Z');
+    const originalMap = new Map([['2026-10', [original]]]);
+    const renamedMap = new Map([['2026-10', [renamed]]]);
+    expect(buildTrendsData(renamedMap, [renamed], now))
+      .toEqual(buildTrendsData(originalMap, [original], now));
+    const actual = buildMonthDetailData('2026-10', [renamed], [renamed], '2026-10');
+    const projected = buildMonthDetailData('2026-11', [], [renamed], '2026-10');
+    expect(actual.installmentExpense.entries[0].description).toBe('Computador');
+    expect(projected.installmentExpense.entries[0].description).toBe('Computador');
+    expect(actual.installmentExpense.total).toBe(1000);
+    expect(projected.installmentExpense.total).toBe(1000);
+  });
+
   // Use a fixed "now" for deterministic tests: March 15, 2026
   const now = new Date(2026, 2, 15);
   const currentKey = buildMonthKey(now);

@@ -37,6 +37,7 @@ function buildEntry(overrides: Partial<EntryData> = {}): EntryData {
     date: overrides.date ?? '2026-01-15T10:00:00.000Z',
     type: overrides.type ?? EntryType.EXPENSE,
     description: overrides.description ?? 'Almuerzo',
+    originalDescription: overrides.originalDescription,
     updatedAt: overrides.updatedAt,
     recurrence: overrides.recurrence,
   };
@@ -99,6 +100,52 @@ describe('MovementDetailPage', () => {
     fixture.detectChanges();
 
     expect((component as any).detail()).toBeNull();
+  });
+
+  it('shows the Excel description separately from the editable description', () => {
+    entryServiceMock.entriesSignal.set([buildEntry({
+      description: 'Almuerzo',
+      originalDescription: 'RESTAURANTE',
+    })]);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Almuerzo');
+    expect(text).toContain('Descripción original');
+    expect(text).toContain('RESTAURANTE');
+
+    entryServiceMock.entriesSignal.set([buildEntry({
+      description: 'Almuerzo',
+      originalDescription: 'RESTAURANTE',
+      updatedAt: '2026-10-09T12:00:00.000Z',
+    })]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Almuerzo');
+    expect(fixture.nativeElement.textContent).toContain('RESTAURANTE');
+    expect(fixture.nativeElement.textContent).not.toContain('COMPRA RESTAURANTE*');
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('.movement-detail-list__item p'))
+      .map((label) => (label as HTMLElement).textContent);
+    expect(labels).toEqual(['Fecha', 'Hora', 'Tipo', 'Descripción original', 'Última actualización']);
+
+    entryServiceMock.entriesSignal.set([buildEntry()]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Descripción original');
+  });
+
+  it('hides the original when no import backup exists, including later edits and month changes', () => {
+    for (const description of ['RESTAURANTE', 'Almuerzo posterior', 'RESTAURANTE (07/10)']) {
+      entryServiceMock.entriesSignal.set([buildEntry({ description })]);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain('Descripción original');
+    }
+  });
+
+  it('keeps the original visible for an import edit even if the name is later restored', () => {
+    entryServiceMock.entriesSignal.set([buildEntry({
+      description: 'RESTAURANTE',
+      originalDescription: 'RESTAURANTE',
+    })]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Descripción original');
   });
 
   it('should delegate deletion', async () => {

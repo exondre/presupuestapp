@@ -38,23 +38,39 @@
             @for (st of selfTransfers(); track st.entry) {
               <ion-item class="import-review-item import-review-item--compact">
                 <ion-label>
-                  <p class="import-review-item__description">{{ st.entry.description || 'Sin descripción' }}</p>
+                  <p class="import-review-item__description">{{ reviewDescription(st.entry) || 'Sin descripción' }}</p>
                   <p class="import-review-item__meta">
-                    <span [class]="st.entry.type === 'EXPENSE' ? 'import-review-item__amount--expense' : 'import-review-item__amount--income'">
-                      {{ utils.formatAmount(st.entry.amount) }}
-                    </span>
+                    <span [class]="st.entry.type === 'EXPENSE' ? 'import-review-item__amount--expense' : 'import-review-item__amount--income'">{{ utils.formatAmount(st.entry.amount) }}</span>
                     · <span class="import-review-item__date">{{ formatDate(st.entry.date) }}</span>
                   </p>
+                  @if (reviewDescription(st.entry).trim() !== (st.entry.originalDescription ?? st.entry.description)) {
+                    <ion-note class="import-review-item__original">
+                      Original: {{ (st.entry.originalDescription ?? st.entry.description) || 'Sin descripción' }}
+                    </ion-note>
+                  }
+                  <div class="import-review-item__controls">
+                    @if (!st.ignored) {
+                      <ion-button
+                        size="small"
+                        fill="clear"
+                        color="medium"
+                        [attr.aria-label]="'Editar descripción de ' + (reviewDescription(st.entry) || 'registro sin descripción')"
+                        (click)="promptDescriptionEdit(st.entry)"
+                      >
+                        <ion-icon slot="start" name="create-outline" aria-hidden="true"></ion-icon>
+                        Editar
+                      </ion-button>
+                    }
+                    <ion-button
+                      size="small"
+                      fill="outline"
+                      [color]="st.ignored ? 'medium' : 'success'"
+                      (click)="toggleSelfTransfer(st)"
+                    >
+                      {{ st.ignored ? 'Ignorada' : 'Incluida' }}
+                    </ion-button>
+                  </div>
                 </ion-label>
-                <ion-button
-                  slot="end"
-                  size="small"
-                  fill="outline"
-                  [color]="st.ignored ? 'medium' : 'success'"
-                  (click)="toggleSelfTransfer(st)"
-                >
-                  {{ st.ignored ? 'Ignorada' : 'Incluida' }}
-                </ion-button>
               </ion-item>
             }
           </ion-list>
@@ -190,7 +206,7 @@
               @for (entry of displayReadyToImport(); track entry) {
                 <ion-item class="import-review-item import-review-item--compact">
                   <ion-label>
-                    <p class="import-review-item__description">{{ entry.description || 'Sin descripción' }}</p>
+                    <p class="import-review-item__description">{{ reviewDescription(entry) || 'Sin descripción' }}</p>
                     <p class="import-review-item__meta">
                       <span [class]="entry.type === 'EXPENSE' ? 'import-review-item__amount--expense' : 'import-review-item__amount--income'">{{ utils.formatAmount(entry.amount) }}</span>
                       · <span class="import-review-item__date">{{ formatDate(entry.date) }}</span>
@@ -198,21 +214,37 @@
                         · Cuota {{ entry.installmentInfo.current }} de {{ entry.installmentInfo.total }}
                       }
                     </p>
+                    @if (reviewDescription(entry).trim() !== (entry.originalDescription ?? entry.description)) {
+                      <ion-note class="import-review-item__original">
+                        Original: {{ (entry.originalDescription ?? entry.description) || 'Sin descripción' }}
+                      </ion-note>
+                    }
                     @if (isDeferredToNextMonth(entry)) {
                       <ion-note class="import-review-item__accounting-note">
                         <span>Se importará el {{ formatNextAccountingDate(entry.date) }}</span>
                         <span>Fecha original: {{ formatOriginalShortDate(entry.date) }}</span>
                       </ion-note>
                     }
-                    <div class="import-review-item__accounting-actions">
+                    <div class="import-review-item__controls">
+                      <ion-button
+                        size="small"
+                        fill="clear"
+                        color="medium"
+                        [attr.aria-label]="'Editar descripción de ' + (reviewDescription(entry) || 'registro sin descripción')"
+                        (click)="promptDescriptionEdit(entry)"
+                      >
+                        <ion-icon slot="start" name="create-outline" aria-hidden="true"></ion-icon>
+                        Editar
+                      </ion-button>
                       <ion-button
                         size="small"
                         fill="clear"
                         [color]="isDeferredToNextMonth(entry) ? 'primary' : 'medium'"
+                        [attr.aria-label]="isDeferredToNextMonth(entry) ? 'Volver a ' + formatAccountingMonth(entry.date) : 'Pasar al mes siguiente'"
                         (click)="toggleDeferredToNextMonth(entry)"
                       >
-                        <ion-icon slot="start" name="calendar-outline"></ion-icon>
-                        {{ isDeferredToNextMonth(entry) ? 'Volver a ' + formatAccountingMonth(entry.date) : 'Pasar al mes siguiente' }}
+                        <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+                        {{ isDeferredToNextMonth(entry) ? 'Mes original' : 'Mes siguiente' }}
                       </ion-button>
                     </div>
                   </ion-label>
@@ -223,7 +255,7 @@
                     color="danger"
                     (click)="removeFromReady(entry)"
                   >
-                    <ion-icon slot="start" name="remove-circle-outline"></ion-icon>
+                    <ion-icon slot="start" name="remove-circle-outline" aria-hidden="true"></ion-icon>
                     Quitar
                   </ion-button>
                 </ion-item>
