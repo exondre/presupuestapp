@@ -8,6 +8,7 @@ import {
   inject,
 } from '@angular/core';
 import {
+  AlertController,
   IonAccordion,
   IonAccordionGroup,
   IonBadge,
@@ -31,6 +32,7 @@ import {
   checkmarkCircleOutline,
   closeCircleOutline,
   calendarOutline,
+  createOutline,
   refreshOutline,
   removeCircleOutline,
   swapHorizontalOutline,
@@ -97,12 +99,14 @@ export class ImportReviewModalComponent {
   readonly dismissed = output<void>();
 
   protected readonly utils = inject(UtilsService);
+  private readonly alertController = inject(AlertController);
 
   protected readonly potentialDuplicates = signal<PotentialDuplicate[]>([]);
   protected readonly discardedEntries = signal<ParsedEntry[]>([]);
   protected readonly readyToImport = signal<ParsedEntry[]>([]);
   protected readonly selfTransfers = signal<SelfTransferEntry[]>([]);
   protected readonly deferredEntries = signal<Set<ParsedEntry>>(new Set());
+  protected readonly descriptionEdits = signal<Map<ParsedEntry, string>>(new Map());
   private readonly confirmedDuplicates = signal<PotentialDuplicate[]>([]);
   private static readonly chileTimeZone = 'America/Santiago';
 
@@ -132,6 +136,7 @@ export class ImportReviewModalComponent {
       'calendar-outline': calendarOutline,
       'swap-horizontal-outline': swapHorizontalOutline,
       'refresh-outline': refreshOutline,
+      'create-outline': createOutline,
     });
 
     effect(() => {
@@ -142,6 +147,7 @@ export class ImportReviewModalComponent {
       this.selfTransfers.set([...(result.selfTransfers ?? []).map((st) => ({ ...st }))]);
       this.confirmedDuplicates.set([]);
       this.deferredEntries.set(new Set());
+      this.descriptionEdits.set(new Map());
     });
   }
 
@@ -233,6 +239,40 @@ export class ImportReviewModalComponent {
     );
   }
 
+  /** Updates the display description without mutating the parsed Excel entry. */
+  protected editDescription(entry: ParsedEntry, value: string | null | undefined): void {
+    this.descriptionEdits.update((edits) => new Map(edits).set(entry, value ?? ''));
+  }
+
+  /** Resolves the draft description shown in the review field. */
+  protected reviewDescription(entry: ParsedEntry): string {
+    return this.descriptionEdits().get(entry) ?? entry.description;
+  }
+
+  /** Opens a focused editor, keeping the review list compact and saving only on confirmation. */
+  protected async promptDescriptionEdit(entry: ParsedEntry): Promise<void> {
+    const alert = await this.alertController.create({
+      header: 'Editar descripción',
+      subHeader: `Original: ${(entry.originalDescription ?? entry.description) || 'Sin descripción'}`,
+      inputs: [{
+        name: 'description',
+        type: 'textarea',
+        value: this.reviewDescription(entry),
+        placeholder: 'Sin descripción',
+        attributes: { 'aria-label': 'Descripción', rows: 3 },
+      }],
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Guardar', role: 'confirm' },
+      ],
+    });
+    await alert.present();
+    const { data, role } = await alert.onDidDismiss<{ values?: { description?: string } }>();
+    if (role === 'confirm' && typeof data?.values?.description === 'string') {
+      this.editDescription(entry, data.values.description.trim());
+    }
+  }
+
   /**
    * Emits the final list of approved entries (excluding ignored self-transfers) and dismisses the modal.
    */
@@ -244,7 +284,15 @@ export class ImportReviewModalComponent {
     );
     const filteredReady = this.readyToImport()
       .filter((e) => !ignoredEntries.has(e))
-      .map((entry) => this.applyAccountingDateOverride(entry));
+      .map((entry) => {
+        const description = this.descriptionEdits().get(entry)?.trim() ?? entry.description;
+        const { originalDescription, ...entryWithoutOriginal } = entry;
+        const reviewedEntry: ParsedEntry = { ...entryWithoutOriginal, description };
+        if (description !== (originalDescription ?? entry.description)) {
+          reviewedEntry.originalDescription = originalDescription ?? entry.description;
+        }
+        return this.applyAccountingDateOverride(reviewedEntry, this.isDeferredToNextMonth(entry));
+      });
     this.importConfirmed.emit({
       entriesToImport: [...filteredReady],
       confirmedDuplicates: [...this.confirmedDuplicates()],
@@ -327,10 +375,11 @@ export class ImportReviewModalComponent {
    * Applies the next-month accounting override when the entry is marked for it.
    *
    * @param entry The entry approved for import.
+   * @param deferred Whether the entry should move to the next accounting month.
    * @returns The original entry or a copied entry with accounting date override.
    */
-  private applyAccountingDateOverride(entry: ParsedEntry): ParsedEntry {
-    if (!this.isDeferredToNextMonth(entry)) {
+  private applyAccountingDateOverride(entry: ParsedEntry, deferred: boolean): ParsedEntry {
+    if (!deferred) {
       return entry;
     }
 

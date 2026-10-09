@@ -103,6 +103,7 @@ describe('ExternalEntryImportService', () => {
 
     expect(result.entries.length).toBe(1);
     expect(parsedEntry.description).toBe('ONECLICK CENCOMALLS');
+    expect(parsedEntry.originalDescription).toBe('ONECLICK CENCOMALLS');
     expect(parsedEntry.idempotencyInfo[0].idempotencyKey).toBe(
       `${parsedEntry.date}|ONECLICK CENCOMALLS|900|${EntryType.EXPENSE}`,
     );
@@ -658,6 +659,28 @@ describe('ExternalEntryImportService', () => {
   // =========================================================================
 
   describe('toEntryCreation', () => {
+    it('preserves the Excel identity after renaming and detects reimports as exact duplicates', () => {
+      const rows = [
+        ['FECHA', 'DESCRIPCION', 'TITULAR', 'MONTO', 'CUOTAS', 'VALOR'],
+        ['01/10/2026', '  COMPRA TIENDA*  ', 'Titular', 900, 0, 900],
+      ];
+      const parsed: ParsedEntry = (service as any).parseFalabellaCmrFormat(rows).entries[0];
+      const renamed = service.toEntryCreation({ ...parsed, description: 'Supermercado' });
+      expect(renamed.originalDescription).toBe('TIENDA');
+      expect(renamed.idempotencyInfo).toEqual(parsed.idempotencyInfo);
+      const reimport: ParsedEntry = (service as any).parseFalabellaCmrFormat([
+        rows[0], ['01/10/2026', 'TIENDA', 'Titular', 900, 0, 900],
+      ]).entries[0];
+      const result = service.mergeWithExistingEntries([reimport], [{
+        ...renamed,
+        id: 'stored',
+        recurrence: undefined,
+      }]);
+      expect(result.exactDuplicates).toEqual([reimport]);
+      expect(result.readyToImport.length).toBe(0);
+      expect(result.potentialDuplicates.length).toBe(0);
+    });
+
     it('should map all fields from a ParsedEntry without recurrence', () => {
       const date = new Date(2026, 2, 10).toISOString();
       const parsed: ParsedEntry = {
@@ -1147,7 +1170,11 @@ describe('ExternalEntryImportService', () => {
       const result = (service as any).parseBiceFormat(rows, 'provisoria');
       const entry = result.entries[0];
       expect(entry.description).toBe('Abono  por   transferencia');
+      expect(entry.originalDescription).toBe('Abono  por   transferencia');
       expect(entry.idempotencyInfo[0].idempotencyKey).toContain('abono por transferencia');
+      const renamed = service.toEntryCreation({ ...entry, description: 'Sueldo' });
+      expect(renamed.originalDescription).toBe(entry.originalDescription);
+      expect(renamed.idempotencyInfo).toEqual(entry.idempotencyInfo);
     });
 
     it('should stop reading at "Saldos diarios" (definitiva)', () => {

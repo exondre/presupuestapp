@@ -1,3 +1,4 @@
+import { latestValueSchedule, resolveRecurrenceValues } from './recurrence-values.util';
 import { EntryData } from '../models/entry-data.model';
 import { formatEntryAmount, formatEntryCompactDate, formatEntryMonth } from './entry-display.util';
 import { resolveInstallmentDisplayDetailsFromEntry } from './recurrence-installment-display.util';
@@ -144,6 +145,8 @@ function buildInstallmentSeries(
   }
 
   const totalCount = recurrence.termination.total;
+  const template = associatedEntries.find((item) => item.recurrence?.occurrenceIndex === 0) ?? associatedEntries[0] ?? entry;
+  const projectionTemplate = { ...template, recurrence: { ...recurrence, valueSchedule: latestValueSchedule(associatedEntries) ?? recurrence.valueSchedule } };
   const anchorDate = new Date(recurrence.anchorDate);
   const excludedOccurrences = recurrence.excludedOccurrences ?? [];
   const installmentDetails = resolveInstallmentDisplayDetailsFromEntry(entry);
@@ -159,7 +162,7 @@ function buildInstallmentSeries(
       occurrenceIndex,
       label: `Cuota ${occurrenceIndex + 1}`,
       dateLabel: formatEntryCompactDate(existingEntry ? new Date(existingEntry.date) : projectedDate),
-      amountLabel: formatEntryAmount(existingEntry?.amount ?? entry.amount),
+      amountLabel: formatEntryAmount(existingEntry?.amount ?? resolveRecurrenceValues(projectionTemplate, occurrenceIndex).amount),
       status,
       entryId: existingEntry?.id,
     };

@@ -1,6 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import {
+  EntryChanges,
+  EntryScope,
+  EntryValueSchedule,
   EntryCreation,
   EntryData,
   EntryRecurrence,
@@ -9,6 +12,7 @@ import {
   EntryType,
   IdempotencyInfo,
 } from '../models/entry-data.model';
+import { latestValueSchedule, resolveRecurrenceValues, validateValueSchedule } from '../utils/recurrence-values.util';
 import { MonthSummaryItem } from '../models/month-summary-item.model';
 import { LocalStorageService } from './local-storage.service';
 
@@ -18,9 +22,8 @@ type StoredEntry = Partial<EntryData> & {
   description?: string;
   type?: EntryType | string;
   updatedAt?: string;
+  originalNormalizedDescription?: unknown;
 };
-
-type RecurrenceRemovalScope = 'single' | 'future' | 'series';
 
 /**
  * Manages the lifecycle of entries by keeping them in memory and persisting
@@ -132,6 +135,7 @@ export class EntryService {
       amount: entry.amount,
       date: entry.date,
       description: entry.description,
+      originalDescription: entry.originalDescription,
       type,
       updatedAt: new Date().toISOString(),
     };
@@ -161,6 +165,7 @@ export class EntryService {
         amount: entry.amount,
         date: entry.date,
         description: entry.description,
+        originalDescription: entry.originalDescription,
         type,
         updatedAt: new Date().toISOString(),
         idempotencyInfo: entry.idempotencyInfo,
@@ -239,51 +244,112 @@ export class EntryService {
    * Updates the entry matching the provided identifier with the supplied changes.
    *
    * @param entryId Identifier of the entry to update.
-   * @param updates Partial data to merge into the existing entry.
+   * @param updates Only the fields changed in the editor.
+   * @param scope Occurrences affected by value changes; dates remain local to the selection.
    */
   updateEntry(
     entryId: string,
-    updates: Partial<Omit<EntryData, 'id'>> & { type?: EntryType | string }
+    updates: EntryChanges,
+    scope: EntryScope = 'single',
   ): void {
     const currentEntries = this.entriesSubject.value;
-    const entryIndex = currentEntries.findIndex((entry) => entry.id === entryId);
+    const currentEntry = currentEntries.find((entry) => entry.id === entryId);
+    if (!currentEntry) {
+      return;
+    }
+    if (!['single', 'future', 'series'].includes(scope) ||
+        Object.keys(updates).some((key) => !['amount', 'description', 'date', 'type'].includes(key)) ||
+        ('amount' in updates && !Number.isSafeInteger(updates.amount)) ||
+        ('description' in updates && updates.description !== undefined && updates.description !== null &&
+          typeof updates.description !== 'string') ||
+        ('date' in updates && (typeof updates.date !== 'string' || !Number.isFinite(Date.parse(updates.date)))) ||
+        ('type' in updates && updates.type !== EntryType.EXPENSE && updates.type !== EntryType.INCOME)) {
+      throw new Error('Invalid entry update.');
+    }
 
-    if (entryIndex === -1) {
+    const description = 'description' in updates
+      ? updates.description?.trim() || undefined
+      : currentEntry.description;
+    const date = updates.date === undefined ? currentEntry.date : new Date(updates.date).toISOString();
+    const values: { amount?: number; description?: string | null } = {};
+    if (updates.amount !== undefined && updates.amount !== currentEntry.amount) {
+      values.amount = updates.amount;
+    }
+    if (description !== currentEntry.description) {
+      values.description = description ?? null;
+    }
+    const hasValueChanges = Object.keys(values).length > 0;
+    if (!hasValueChanges && date === currentEntry.date &&
+        (updates.type === undefined || updates.type === currentEntry.type)) {
       return;
     }
 
-    const currentEntry = currentEntries[entryIndex];
-    const candidate: StoredEntry = {
-      ...currentEntry,
-      ...updates,
-      id: currentEntry.id,
-    };
-    candidate.recurrence = currentEntry.recurrence;
-
-    const normalized = this.normalizeStoredEntry(candidate);
-    if (!normalized) {
-      return;
+    const recurrence = currentEntry.recurrence;
+    const members = recurrence ? currentEntries.filter(
+      (entry) => entry.recurrence?.recurrenceId === recurrence.recurrenceId,
+    ) : [];
+    let schedule = latestValueSchedule(members);
+    const timestamp = new Date(Math.max(Date.now(),
+      schedule ? Date.parse(schedule.revision) + 1 : 0)).toISOString();
+    if (recurrence && hasValueChanges) {
+      const template = members.find((entry) => entry.recurrence?.occurrenceIndex === 0) ?? members[0];
+      schedule = schedule ?? {
+        revision: timestamp,
+        baseline: { amount: template.amount, description: template.description ?? null },
+        changes: [],
+      };
+      if (scope !== 'single') {
+        const cutoff = scope === 'series' ? 0 : recurrence.occurrenceIndex;
+        const changes = schedule.changes.map((change) => {
+          const patch = { ...change };
+          if (patch.fromOccurrenceIndex >= cutoff) {
+            if ('amount' in values) { delete patch.amount; }
+            if ('description' in values) { delete patch.description; }
+          }
+          return patch;
+        });
+        if (scope === 'future') {
+          const patch = changes.find((change) => change.fromOccurrenceIndex === cutoff);
+          if (patch) { Object.assign(patch, values); }
+          else { changes.push({ fromOccurrenceIndex: cutoff, ...values }); }
+        }
+        schedule = {
+          revision: timestamp,
+          baseline: scope === 'series' ? { ...schedule.baseline, ...values } : schedule.baseline,
+          changes: changes.filter((change) => change.amount !== undefined || change.description !== undefined)
+            .sort((left, right) => left.fromOccurrenceIndex - right.fromOccurrenceIndex),
+        };
+      }
     }
 
-    const updatedEntry = normalized.entry;
-    const isUnchanged =
-      updatedEntry.amount === currentEntry.amount &&
-      updatedEntry.date === currentEntry.date &&
-      updatedEntry.description === currentEntry.description &&
-      updatedEntry.type === currentEntry.type &&
-      this.areRecurrencesEqual(updatedEntry.recurrence, currentEntry.recurrence);
-
-    if (isUnchanged) {
-      return;
-    }
-
-    const patchedEntry: EntryData = {
-      ...updatedEntry,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const updatedEntries = [...currentEntries];
-    updatedEntries[entryIndex] = patchedEntry;
+    const updatedEntries = currentEntries.map((entry): EntryData => {
+      const selected = entry.id === entryId;
+      const sameSeries = recurrence && entry.recurrence?.recurrenceId === recurrence.recurrenceId;
+      const affected = selected || (sameSeries && (scope === 'series' ||
+        (scope === 'future' && entry.recurrence!.occurrenceIndex >= recurrence.occurrenceIndex)));
+      const metadataChanged = sameSeries && schedule &&
+        JSON.stringify(entry.recurrence?.valueSchedule) !== JSON.stringify(schedule);
+      if (!affected && !metadataChanged) { return entry; }
+      const result = { ...entry };
+      if (affected && hasValueChanges) {
+        if (values.amount !== undefined) { result.amount = values.amount; }
+        if ('description' in values) { result.description = values.description ?? undefined; }
+      }
+      if (selected) {
+        result.date = date;
+        result.type = updates.type ?? entry.type;
+      }
+      if (metadataChanged) {
+        result.recurrence = { ...entry.recurrence!, valueSchedule: schedule };
+      }
+      // Shared rules are synchronized even on earlier rows whose displayed values stay unchanged.
+      if (metadataChanged || result.amount !== entry.amount || result.description !== entry.description ||
+          result.date !== entry.date || result.type !== entry.type) {
+        result.updatedAt = timestamp;
+        return result;
+      }
+      return entry;
+    });
     this.persistEntries(updatedEntries);
   }
 
@@ -400,13 +466,25 @@ export class EntryService {
       return { recurrence: undefined, requiresSync: true };
     }
 
+    const rawSchedule = (value as Partial<EntryRecurrence>).valueSchedule;
+    const valueSchedule = rawSchedule === undefined ? undefined : validateValueSchedule(rawSchedule);
+    if (valueSchedule && (!Number.isSafeInteger((value as EntryRecurrence).occurrenceIndex) ||
+        (value as EntryRecurrence).occurrenceIndex < 0)) {
+      throw new Error('Invalid occurrence index for recurring value schedule.');
+    }
     const candidate = value as Partial<EntryRecurrence> & {
       termination?: unknown;
       frequency?: unknown;
       excludedOccurrences?: unknown;
     };
 
+    if (valueSchedule && (typeof candidate.recurrenceId !== 'string' || !candidate.recurrenceId.trim() ||
+        typeof candidate.anchorDate !== 'string' || !Number.isFinite(Date.parse(candidate.anchorDate)))) {
+      throw new Error('Invalid identity or anchor for recurring value schedule.');
+    }
+
     if (candidate.frequency !== 'monthly') {
+      if (valueSchedule) { throw new Error('Invalid frequency for recurring value schedule.'); }
       return { recurrence: undefined, requiresSync: true };
     }
 
@@ -446,9 +524,13 @@ export class EntryService {
       candidate.termination
     );
     if (!terminationNormalization.termination) {
+      if (valueSchedule) { throw new Error('Invalid termination for recurring value schedule.'); }
       return { recurrence: undefined, requiresSync: true };
     }
 
+    if (valueSchedule && terminationNormalization.requiresSync) {
+      throw new Error('Invalid termination for recurring value schedule.');
+    }
     requiresSync ||= terminationNormalization.requiresSync;
 
     const excludedNormalization = this.normalizeExcludedOccurrences(
@@ -464,6 +546,7 @@ export class EntryService {
         frequency: 'monthly',
         termination: terminationNormalization.termination,
         excludedOccurrences: excludedNormalization.values,
+        ...(valueSchedule ? { valueSchedule } : {}),
       },
       requiresSync,
     };
@@ -610,6 +693,7 @@ export class EntryService {
       left.anchorDate === right.anchorDate &&
       left.occurrenceIndex === right.occurrenceIndex &&
       left.frequency === right.frequency &&
+      JSON.stringify(left.valueSchedule) === JSON.stringify(right.valueSchedule) &&
       this.areTerminationsEqual(left.termination, right.termination) &&
       this.areExcludedOccurrencesEqual(
         left.excludedOccurrences,
@@ -701,7 +785,7 @@ export class EntryService {
    */
   removeEntry(
     entryId: string,
-    scope: RecurrenceRemovalScope = 'single'
+    scope: EntryScope = 'single'
   ): void {
     const currentEntries = this.entriesSubject.value;
     const targetEntry = currentEntries.find((entry) => entry.id === entryId);
@@ -852,9 +936,9 @@ export class EntryService {
    * @param entries Entries collection to persist.
    */
   private persistEntries(entries: EntryData[]): void {
+    this.localStorageService.setItem(EntryService.storageKey, entries);
     this.entriesSubject.next(entries);
     this.entriesSignal.set(entries);
-    this.localStorageService.setItem(EntryService.storageKey, entries);
   }
 
   /**
@@ -938,11 +1022,13 @@ export class EntryService {
 
         const occurrenceDate = this.addMonths(anchorDate, index);
         const normalizedDate = occurrenceDate.toISOString();
+        const values = resolveRecurrenceValues(template, index);
         const newEntry: EntryData = {
           id: this.generateId(),
-          amount: template.amount,
+          amount: values.amount,
           date: normalizedDate,
-          description: template.description,
+          description: values.description ?? undefined,
+          originalDescription: template.originalDescription,
           type: template.type,
           updatedAt: new Date().toISOString(),
           recurrence: {
@@ -967,7 +1053,13 @@ export class EntryService {
     );
 
     void Promise.resolve().then(() => {
+      if (this.entriesSubject.value !== currentEntries) {
+        this.ensureRecurringEntriesUpTo(targetDate);
+        return;
+      }
       this.persistEntries(updatedEntries);
+    }).catch((error: unknown) => {
+      console.error('Failed to persist generated recurring entries.', error);
     });
   }
 
@@ -1069,7 +1161,7 @@ export class EntryService {
       this.localStorageService.setItem(EntryService.storageKey, normalized);
     }
 
-    return normalized;
+    return this.reconcileValueSchedules(normalized);
   }
 
   /**
@@ -1083,6 +1175,10 @@ export class EntryService {
   ): { entry: EntryData; requiresSync: boolean } | null {
     if (!entry || typeof entry !== 'object') {
       return null;
+    }
+
+    if (entry.recurrence?.valueSchedule !== undefined && !Number.isSafeInteger(entry.amount)) {
+      throw new Error('Invalid amount for recurring value schedule.');
     }
 
     const amount = this.normalizeAmount(entry.amount);
@@ -1112,12 +1208,17 @@ export class EntryService {
         ? entry.id
         : this.generateId();
 
+    // Collapse backups from the previous two-field format into the normalized original.
+    const originalDescription = typeof entry.originalNormalizedDescription === 'string'
+      ? entry.originalNormalizedDescription : entry.originalDescription;
+
     const requiresSync =
       dateRequiresSync ||
       id !== entry.id ||
       typeRequiresSync ||
       updatedAtRequiresSync ||
-      recurrenceRequiresSync;
+      recurrenceRequiresSync ||
+      entry.originalNormalizedDescription !== undefined;
 
     return {
       entry: {
@@ -1125,6 +1226,7 @@ export class EntryService {
         amount,
         date: normalizedDate,
         description,
+        ...(typeof originalDescription === 'string' ? { originalDescription } : {}),
         type,
         updatedAt,
         recurrence,
@@ -1338,7 +1440,6 @@ export class EntryService {
   });
 
   extractAndNormalizeImportedEntries(importedData: any): EntryData[] {
-      console.debug('Extracting and normalizing imported entries.', importedData);
       const importedEntries = this.extractImportedEntries(importedData);
 
       const normalizedImported: EntryData[] = [];
@@ -1349,7 +1450,26 @@ export class EntryService {
         }
         normalizedImported.push(normalized.entry);
       });
-      return normalizedImported;
+      return this.reconcileValueSchedules(normalizedImported);
+  }
+
+  /** Replicates the latest series rules independently of each transaction's merge timestamp. */
+  private reconcileValueSchedules(entries: EntryData[], candidates = entries): EntryData[] {
+    const schedules = new Map<string, EntryValueSchedule>();
+    for (const entry of candidates) {
+      const recurrence = entry.recurrence;
+      if (!recurrence?.valueSchedule) { continue; }
+      const previous = schedules.get(recurrence.recurrenceId);
+      const latest = latestValueSchedule([
+        entry,
+        { ...entry, recurrence: { ...recurrence, valueSchedule: previous } },
+      ]);
+      if (latest) { schedules.set(recurrence.recurrenceId, latest); }
+    }
+    return entries.map((entry) => {
+      const schedule = entry.recurrence && schedules.get(entry.recurrence.recurrenceId);
+      return schedule ? { ...entry, recurrence: { ...entry.recurrence!, valueSchedule: schedule } } : entry;
+    });
   }
 
   async compareAndMergeEntries(importedData: unknown): Promise<{
@@ -1388,6 +1508,7 @@ export class EntryService {
         importedEntry.amount === existingEntry.amount &&
         importedEntry.date === existingEntry.date &&
         importedEntry.description === existingEntry.description &&
+        importedEntry.originalDescription === existingEntry.originalDescription &&
         importedEntry.type === existingEntry.type &&
         this.areRecurrencesEqual(
           importedEntry.recurrence,
@@ -1411,11 +1532,18 @@ export class EntryService {
         importedUpdatedAt &&
         (!existingUpdatedAt || importedUpdatedAt > existingUpdatedAt);
 
-      currentEntriesMap.set(importedEntry.id, importedIsMoreRecent ? importedEntry : existingEntry);
+      const selectedEntry = importedIsMoreRecent ? importedEntry : existingEntry;
+      currentEntriesMap.set(importedEntry.id, {
+        ...selectedEntry,
+        originalDescription: selectedEntry.originalDescription ??
+          existingEntry.originalDescription ?? importedEntry.originalDescription,
+      });
       updated += 1;
     });
 
-    const mergedEntries = Array.from(currentEntriesMap.values());
+    const mergedEntries = this.reconcileValueSchedules(
+      Array.from(currentEntriesMap.values()), [...currentEntries, ...normalizedImported],
+    );
     this.persistEntries(mergedEntries);
     this.ensureRecurringEntriesUpTo(new Date());
 

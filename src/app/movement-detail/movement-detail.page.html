@@ -61,6 +61,14 @@
               <h3>{{ detail.typeLabel }}</h3>
             </ion-label>
           </ion-item>
+          @if (detail.originalDescription !== undefined) {
+            <ion-item class="movement-detail-list__item">
+              <ion-label class="ion-text-wrap">
+                <p>Descripción original</p>
+                <h3>{{ detail.originalDescription || 'Sin descripción' }}</h3>
+              </ion-label>
+            </ion-item>
+          }
           @if (detail.updatedAtLabel) {
             <ion-item class="movement-detail-list__item">
               <ion-label>
@@ -151,5 +159,4 @@
 
 <app-new-entry-modal
   #newEntryModal
-  (entryUpdated)="handleEntryUpdated($event)"
 ></app-new-entry-modal>

@@ -30,7 +30,7 @@ import {
   trashOutline,
 } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
-import { EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
+import { EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryActionService } from '../shared/services/entry-action.service';
 import { EntryService } from '../shared/services/entry.service';
 import {
@@ -53,6 +53,7 @@ interface MovementDetailViewModel {
   typeLabel: string;
   amountLabel: string;
   description: string;
+  originalDescription?: string;
   dateLabel: string;
   timeLabel: string;
   updatedAtLabel?: string;
@@ -162,19 +163,6 @@ export class MovementDetailPage {
     }
 
     modal.openForEdit(entry);
-  }
-
-  /**
-   * Receives the data emitted when an entry has been edited.
-   *
-   * @param payload Entry data modifications captured through the modal.
-   */
-  protected handleEntryUpdated(payload: EntryUpdatePayload): void {
-    this.entryService.updateEntry(payload.id, {
-      amount: payload.amount,
-      date: payload.date,
-      description: payload.description,
-    });
   }
 
   /**
@@ -293,6 +281,7 @@ export class MovementDetailPage {
       typeLabel: entry.type === EntryType.INCOME ? 'Ingreso' : 'Egreso',
       amountLabel: formatEntryAmount(entry.amount),
       description: resolveEntryDescription(entry.description),
+      originalDescription: entry.originalDescription,
       dateLabel: formatEntryDate(occurrenceDate),
       timeLabel: formatEntryTime(occurrenceDate),
       updatedAtLabel: updatedAt ? formatEntryDateTime(updatedAt) : undefined,

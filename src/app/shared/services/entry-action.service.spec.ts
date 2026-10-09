@@ -8,6 +8,7 @@ import { EntryActionService } from './entry-action.service';
 class EntryServiceMock {
   readonly entriesSignal = signal<EntryData[]>([]);
   readonly removeEntry = jasmine.createSpy('removeEntry');
+  readonly updateEntry = jasmine.createSpy('updateEntry');
 }
 
 /**
@@ -149,4 +150,69 @@ describe('EntryActionService', () => {
     await expectAsync(promise).toBeResolvedTo(true);
     expect(entryServiceMock.removeEntry).toHaveBeenCalledWith('entry-id', 'series');
   });
+
+  describe('editing', () => {
+    beforeEach(() => {
+      entryServiceMock.entriesSignal.set([buildEntry({ recurrence: {
+        recurrenceId: 'r', anchorDate: '2026-01-15T10:00:00.000Z', occurrenceIndex: 2,
+        frequency: 'monthly', termination: { mode: 'indefinite' },
+      } })]);
+    });
+
+    for (const scope of ['single', 'future', 'series']) {
+      it(`selects ${scope} using dismissal data with no preselected broader scope`, async () => {
+        actionSheetControllerMock.create.and.resolveTo({ present: async () => undefined,
+          onDidDismiss: async () => ({ data: scope }) } as any);
+        const result = await service.confirmAndUpdateEntry({ id: 'entry-id', amount: 2000, date: '2026-02-01T12:00:00.000Z' });
+        const config = actionSheetControllerMock.create.calls.mostRecent().args[0]!;
+        expect((config.buttons as any[]).map((button) => button.text)).toEqual([
+          'Solo esta transacción', 'Esta y las futuras transacciones',
+          'Toda la serie (incluye meses anteriores)', 'Cancelar',
+        ]);
+        expect(config.subHeader).toContain('La fecha cambia solo en esta transacción');
+        expect(result).toBe('saved');
+        expect(entryServiceMock.updateEntry).toHaveBeenCalledWith('entry-id', {
+          amount: 2000, date: '2026-02-01T12:00:00.000Z',
+        }, scope);
+      });
+    }
+
+    for (const dismissal of [{ role: 'cancel' }, { role: 'backdrop' }, {}]) {
+      it(`does not save on dismissal ${JSON.stringify(dismissal)}`, async () => {
+        actionSheetControllerMock.create.and.resolveTo({ present: async () => undefined,
+          onDidDismiss: async () => dismissal } as any);
+        expect(await service.confirmAndUpdateEntry({ id: 'entry-id', amount: 2000 })).toBe('cancelled');
+        expect(entryServiceMock.updateEntry).not.toHaveBeenCalled();
+      });
+    }
+
+    for (const payload of [{ id: 'entry-id' }, { id: 'entry-id', amount: 1000 },
+      { id: 'entry-id', date: '2026-02-01T12:00:00.000Z' }]) {
+      it(`skips the selector without actual value changes: ${JSON.stringify(payload)}`, async () => {
+        expect(await service.confirmAndUpdateEntry(payload)).toBe('saved');
+        expect(actionSheetControllerMock.create).not.toHaveBeenCalled();
+      });
+    }
+
+    it('skips the selector for a non-recurring entry', async () => {
+      entryServiceMock.entriesSignal.set([buildEntry()]);
+      expect(await service.confirmAndUpdateEntry({ id: 'entry-id', description: 'Nuevo' })).toBe('saved');
+      expect(actionSheetControllerMock.create).not.toHaveBeenCalled();
+    });
+
+    it('rechecks the target after asynchronous scope selection', async () => {
+      actionSheetControllerMock.create.and.resolveTo({ present: async () => undefined,
+        onDidDismiss: async () => { entryServiceMock.entriesSignal.set([]); return { data: 'future' }; } } as any);
+      expect(await service.confirmAndUpdateEntry({ id: 'entry-id', amount: 2000 })).toBe('cancelled');
+      expect(entryServiceMock.updateEntry).not.toHaveBeenCalled();
+      expect(alertControllerMock.create).toHaveBeenCalledWith(jasmine.objectContaining({ header: 'No se pudo guardar' }));
+    });
+
+    it('returns cancellation and a localized error on persistence failure', async () => {
+      entryServiceMock.updateEntry.and.throwError('Quota exceeded');
+      expect(await service.confirmAndUpdateEntry({ id: 'entry-id', date: '2026-02-01T12:00:00.000Z' })).toBe('cancelled');
+      expect(alertControllerMock.create).toHaveBeenCalledWith(jasmine.objectContaining({ header: 'No se pudo guardar' }));
+    });
+  });
+
 });
