@@ -44,6 +44,7 @@ import {
   EntryType,
   EntryUpdatePayload,
 } from '../../models/entry-data.model';
+import { EntryActionService } from '../../services/entry-action.service';
 import { resolveInstallmentDisplayDetailsFromEntry } from '../../utils/recurrence-installment-display.util';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline } from 'ionicons/icons';
@@ -80,7 +81,8 @@ type RecurrenceFormMode = 'none' | 'indefinite' | 'occurrences';
 })
 export class NewEntryModalComponent implements AfterViewInit {
   protected readonly entrySaved = output<EntryCreation>();
-  protected readonly entryUpdated = output<EntryUpdatePayload>();
+  private readonly entryActionService = inject(EntryActionService);
+  protected isSaving = false;
   protected readonly entryType = EntryType;
   readonly presetType = input<EntryType | null>(null);
 
@@ -248,9 +250,10 @@ export class NewEntryModalComponent implements AfterViewInit {
   }
 
   /**
-   * Handles the save action by emitting the entry data once validation succeeds.
+   * Validates the form, emits creations and awaits confirmed edits before closing.
    */
-  protected handleSave(): void {
+  protected async handleSave(): Promise<void> {
+    if (this.isSaving) { return; }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -269,16 +272,21 @@ export class NewEntryModalComponent implements AfterViewInit {
         );
 
     if (this.isEditMode && this.editingEntry) {
+      const entry = this.editingEntry;
+      const payload: EntryUpdatePayload = { id: entry.id };
+      if (parsedAmount !== entry.amount) { payload.amount = parsedAmount; }
+      if (normalizedDescription !== entry.description) { payload.description = normalizedDescription ?? null; }
+      if (date !== this.convertDateToChileIso(new Date(entry.date))) { payload.date = normalizedDate; }
+      this.isSaving = true;
+      try {
+        const outcome = await this.entryActionService.confirmAndUpdateEntry(payload);
+        if (outcome !== 'saved') { return; }
+      } finally {
+        this.isSaving = false;
+      }
       this.hasSavedCurrentForm = true;
       this.prepareToBypassDismissGuard();
       this.isOpen = false;
-
-      this.entryUpdated.emit({
-        id: this.editingEntry.id,
-        amount: parsedAmount,
-        date: normalizedDate,
-        description: normalizedDescription,
-      });
       return;
     }
 
@@ -515,6 +523,7 @@ export class NewEntryModalComponent implements AfterViewInit {
    * @returns A promise resolving to true when the modal can be dismissed.
    */
   private async ensureCanDismiss(): Promise<boolean> {
+    if (this.isSaving) { return false; }
     if (!this.hasUnsavedChanges() || this.hasSavedCurrentForm) {
       return true;
     }

@@ -152,6 +152,7 @@ describe('EntryService', () => {
         'date',
         'type',
         'description',
+        'originalDescription',
         'updatedAt',
         'recurrence',
         'idempotencyInfo',
@@ -159,6 +160,7 @@ describe('EntryService', () => {
 
       const entry = {
         id: 'guardian-id',
+        originalDescription: 'TIENDA',
         amount: 1000,
         date: '2024-05-01T00:00:00.000Z',
         type: EntryType.EXPENSE,
@@ -302,6 +304,105 @@ describe('EntryService', () => {
   // --------------------------------------------------------------------------
 
   describe('importEntries', () => {
+    it('round-trips original text and keys through JSON and subsequent edits', () => {
+      service.addEntries([{
+        amount: 350,
+        date: '2026-10-01T12:00:00.000Z',
+        type: EntryType.EXPENSE,
+        description: 'Café',
+        originalDescription: 'COFFEE',
+        idempotencyInfo: [{ idempotencyKey: 'excel-key', idempotencyVersion: '1' }],
+      }]);
+      const exported = service.serializeEntries();
+      service.importEntries(JSON.parse(exported));
+      const entry = service.getEntriesSnapshot()[0];
+      service.updateEntry(entry.id, { description: 'Desayuno' });
+      expect(service.getEntriesSnapshot()[0].originalDescription).toBe('COFFEE');
+      expect(service.getEntriesSnapshot()[0].idempotencyInfo).toEqual(entry.idempotencyInfo);
+      expect(JSON.parse(service.serializeEntries())[0].description).toBe('Desayuno');
+      const stored = localStorageServiceSpy.setItem.calls.mostRecent().args[1] as EntryData[];
+      expect(stored[0].originalDescription)
+        .toBe('COFFEE');
+    });
+
+    it('ignores invalid original descriptions and accepts legacy JSON', () => {
+      service.importEntries([
+        buildEntry({ id: 'legacy' }),
+        { ...buildEntry({ id: 'invalid' }), originalDescription: { unsafe: true } },
+        buildEntry({ id: 'empty', originalDescription: '' }),
+      ]);
+      expect(service.getEntriesSnapshot()[0].originalDescription).toBeUndefined();
+      expect(service.getEntriesSnapshot()[1].originalDescription).toBeUndefined();
+      expect(service.getEntriesSnapshot()[2].originalDescription).toBe('');
+    });
+
+    it('collapses previous two-field backups into one normalized original in JSON and storage', () => {
+      const oldEntry = {
+        ...buildEntry({ description: 'Supermercado' }),
+        originalDescription: 'COMPRA MERPAGO*INFOODSPA',
+        originalNormalizedDescription: 'MERPAGO*INFOODSPA',
+        idempotencyInfo: [{ idempotencyKey: 'legacy-excel-key', idempotencyVersion: '1' }],
+      };
+      service.importEntries([oldEntry]);
+      const exported = JSON.parse(service.serializeEntries()) as Record<string, unknown>[];
+      expect(exported[0]['originalDescription']).toBe('MERPAGO*INFOODSPA');
+      expect(Object.hasOwn(exported[0], 'originalNormalizedDescription')).toBeFalse();
+      expect(service.getEntriesSnapshot()[0].idempotencyInfo).toEqual(oldEntry.idempotencyInfo);
+
+      localStorageServiceSpy.getItem.and.returnValue([oldEntry]);
+      const restored = TestBed.runInInjectionContext(() => new EntryService());
+      expect(restored.getEntriesSnapshot()[0].originalDescription).toBe('MERPAGO*INFOODSPA');
+      const stored = localStorageServiceSpy.setItem.calls.mostRecent().args[1] as EntryData[];
+      expect(stored[0].originalDescription).toBe('MERPAGO*INFOODSPA');
+      expect(Object.hasOwn(stored[0], 'originalNormalizedDescription')).toBeFalse();
+      expect(stored[0].idempotencyInfo).toEqual(oldEntry.idempotencyInfo);
+    });
+
+    it('keeps original text when merging a newer legacy backup', async () => {
+      const existing = buildEntry({
+        description: 'Actual',
+        originalDescription: 'EXCEL ORIGINAL',
+      });
+      service.importEntries([existing]);
+      await service.compareAndMergeEntries(JSON.stringify([{
+        ...existing,
+        description: 'Editada en otro dispositivo',
+        originalDescription: undefined,
+        updatedAt: '2026-10-09T12:00:00.000Z',
+      }]));
+      expect(service.getEntriesSnapshot()[0].description).toBe('Editada en otro dispositivo');
+      expect(service.getEntriesSnapshot()[0].originalDescription).toBe('EXCEL ORIGINAL');
+    });
+
+    it('merges original metadata even when the visible fields are unchanged', async () => {
+      const entry = buildEntry({ description: 'Visible' });
+      service.importEntries([entry]);
+      await service.compareAndMergeEntries(JSON.stringify([{
+        ...entry,
+        originalDescription: 'EXCEL ORIGINAL',
+      }]));
+      expect(service.getEntriesSnapshot()[0].originalDescription).toBe('EXCEL ORIGINAL');
+    });
+
+    it('preserves original text in generated installments and after storage restoration', fakeAsync(() => {
+      service.addEntries([{
+        amount: 1000,
+        date: '2026-08-15T12:00:00.000Z',
+        type: EntryType.EXPENSE,
+        description: 'Computador',
+        originalDescription: 'TIENDA',
+        recurrence: { frequency: 'monthly', termination: { mode: 'occurrences', total: 3 } },
+      }]);
+      (service as any).ensureRecurringEntriesUpTo(new Date('2026-10-20T12:00:00.000Z'));
+      tick();
+      const entries = service.getEntriesSnapshot();
+      expect(entries.length).toBe(3);
+      expect(entries.every((entry) => entry.originalDescription === 'TIENDA')).toBeTrue();
+      localStorageServiceSpy.getItem.and.returnValue(JSON.parse(service.serializeEntries()));
+      const restored = TestBed.runInInjectionContext(() => new EntryService());
+      expect(restored.getEntriesSnapshot().every((entry) => entry.originalDescription === 'TIENDA')).toBeTrue();
+    }));
+
     it('preserves idempotencyInfo through the full import flow', () => {
       const idempotencyInfo: IdempotencyInfo[] = [
         { idempotencyKey: '2024-06-01|Coffee|350|EXPENSE', idempotencyVersion: 'v1' },
@@ -612,16 +713,17 @@ describe('EntryService', () => {
       expect(updated!.updatedAt).toBeDefined();
     });
 
-    it('preserves recurrence from currentEntry, ignoring updates.recurrence', () => {
+    it('preserves recurrence identity and captures legacy defaults before editing', () => {
       const rec = buildRecurrence();
       service.importEntries([
         buildEntry({ id: 'upd-rec', recurrence: rec }),
       ]);
-      // Even if updates tries to set recurrence to undefined (it is stripped)
       service.updateEntry('upd-rec', { amount: 9999 });
       const entries = service.getEntriesSnapshot();
       const updated = entries.find((e) => e.id === 'upd-rec');
-      expect(updated!.recurrence).toEqual(rec);
+      expect(updated!.recurrence).toEqual({ ...rec, valueSchedule: jasmine.objectContaining({
+        baseline: { amount: 1000, description: null },
+      }) });
     });
   });
 

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { AlertController } from '@ionic/angular/standalone';
 
 import {
   ImportReviewModalComponent,
@@ -10,9 +11,13 @@ import {
   ParsedEntry,
   PotentialDuplicate,
   SelfTransferEntry,
+  ExternalEntryImportService,
 } from '../../services/external-entry-import.service';
 import { UtilsService } from '../../services/utils.service';
 import { EntryType } from '../../models/entry-data.model';
+import { EntryService } from '../../services/entry.service';
+import { LocalStorageService } from '../../services/local-storage.service';
+import { buildMonthDetailData } from '../../utils/trends-data.util';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,6 +128,8 @@ class UtilsServiceStub {
 describe('ImportReviewModalComponent', () => {
   let component: ImportReviewModalComponent;
   let fixture: ComponentFixture<ImportReviewModalComponent>;
+  let alertController: jasmine.SpyObj<AlertController>;
+  let descriptionAlert: { present: jasmine.Spy; onDidDismiss: jasmine.Spy };
 
   /**
    * Initialises the component with a given MergeResult and runs change
@@ -136,10 +143,21 @@ describe('ImportReviewModalComponent', () => {
   }
 
   beforeEach(async () => {
+    descriptionAlert = {
+      present: jasmine.createSpy('present').and.resolveTo(),
+      onDidDismiss: jasmine.createSpy('onDidDismiss').and.resolveTo({ role: 'cancel' }),
+    };
+    alertController = jasmine.createSpyObj('AlertController', ['create']);
+    alertController.create.and.resolveTo(descriptionAlert as unknown as HTMLIonAlertElement);
     await TestBed.configureTestingModule({
       imports: [ImportReviewModalComponent],
       providers: [
         { provide: UtilsService, useClass: UtilsServiceStub },
+        { provide: AlertController, useValue: alertController },
+        { provide: LocalStorageService, useValue: {
+          getItem: () => [],
+          setItem: jasmine.createSpy('setItem'),
+        } },
       ],
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
     }).compileComponents();
@@ -522,6 +540,129 @@ describe('ImportReviewModalComponent', () => {
   // -------------------------------------------------------------------------
 
   describe('confirmImport', () => {
+    it('keeps CMR normalization and data through review, JSON, trends and reimport', async () => {
+      const importer = TestBed.inject(ExternalEntryImportService);
+      const entries = TestBed.inject(EntryService);
+      const rows = [
+        ['FECHA', 'DESCRIPCION', 'TITULAR', 'MONTO', 'CUOTAS PENDIENTES', 'VALOR CUOTA'],
+        ['07/10/2026', 'COMPRA PedidosYa*Factory Nine*', 'Titular', 13670, 0, 13670],
+        ['07/10/2026', 'COMPRA PedidosYa*Colaciones M*', 'Titular', 6000, 0, 6000],
+        ['06/10/2026', 'COMPRA TUU* LARRABIATA*', 'Titular', 8942, 0, 8942],
+      ];
+      const parsed: ParsedEntry[] = (importer as any).parseFalabellaCmrFormat(rows).entries;
+      setupComponent(importer.mergeWithExistingEntries(parsed, []));
+      expect(parsed.map((entry) => (component as any).reviewDescription(entry))).toEqual([
+        'PedidosYa*Factory Nine', 'PedidosYa*Colaciones M', 'TUU* LARRABIATA',
+      ]);
+
+      descriptionAlert.onDidDismiss.and.resolveTo({
+        role: 'confirm', data: { values: { description: '  Almuerzo  ' } },
+      });
+      await (component as any).promptDescriptionEdit(parsed[2]);
+      const emit = spyOn(component.importConfirmed, 'emit');
+      (component as any).confirmImport();
+      const approved = emit.calls.mostRecent().args[0].entriesToImport;
+      approved.forEach((entry, index) => {
+        expect(entry.originalDescription).toBe(index === 2 ? parsed[index].description : undefined);
+        expect(entry.amount).toBe(parsed[index].amount);
+        expect(entry.date).toBe(parsed[index].date);
+        expect(entry.type).toBe(EntryType.EXPENSE);
+        expect(entry.idempotencyInfo).toEqual(parsed[index].idempotencyInfo);
+        expect(entry.idempotencyInfo[0].idempotencyKey).toBe(
+          `${entry.date}|${parsed[index].description}|${entry.amount}|EXPENSE`,
+        );
+      });
+      entries.addEntries(approved.map((entry) => importer.toEntryCreation(entry)));
+      entries.importEntries(JSON.parse(entries.serializeEntries()));
+      const restored = entries.getEntriesSnapshot();
+      expect(restored.map((entry) => entry.description)).toEqual([
+        'PedidosYa*Factory Nine', 'PedidosYa*Colaciones M', 'Almuerzo',
+      ]);
+      expect(restored.map((entry) => entry.originalDescription)).toEqual([undefined, undefined, parsed[2].description]);
+      const exported = JSON.parse(entries.serializeEntries()) as Record<string, unknown>[];
+      expect(Object.hasOwn(exported[0], 'originalDescription')).toBeFalse();
+      expect(exported.every((entry) => !Object.hasOwn(entry, 'originalNormalizedDescription'))).toBeTrue();
+      const trends = buildMonthDetailData('2026-10', restored, restored, '2026-10');
+      expect(trends.commonExpense.total).toBe(28612);
+      expect(trends.commonExpense.topEntries.map((entry) => entry.description)).toContain('Almuerzo');
+      const reimport = importer.mergeWithExistingEntries(parsed, restored);
+      expect(reimport.exactDuplicates.length).toBe(3);
+      expect(reimport.readyToImport.length).toBe(0);
+      expect(reimport.potentialDuplicates.length).toBe(0);
+    });
+
+    it('keeps the Excel text and keys when a renamed entry is deferred', () => {
+      const ready = buildParsedEntry({
+        date: '2026-05-29T04:00:00.000Z',
+        description: 'TIENDA',
+        originalDescription: 'TIENDA',
+      });
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+      (component as any).editDescription(ready, '  Supermercado  ');
+      (component as any).toggleDeferredToNextMonth(ready);
+      (component as any).confirmImport();
+
+      const imported = emitSpy.calls.mostRecent().args[0].entriesToImport[0];
+      expect(imported.description).toBe('Supermercado (29/05)');
+      expect(imported.originalDescription).toBe('TIENDA');
+      expect(imported.idempotencyInfo).toEqual(ready.idempotencyInfo);
+      expect(getChileDateKey(imported.date)).toBe('2026-06-01');
+      expect(ready.description).toBe('TIENDA');
+    });
+
+    it('omits original descriptions when the final description matches the original', () => {
+      const ready = buildParsedEntry({ description: 'TIENDA', originalDescription: 'TIENDA' });
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      const emit = spyOn(component.importConfirmed, 'emit');
+      (component as any).editDescription(ready, 'Otra');
+      (component as any).editDescription(ready, '  TIENDA  ');
+      (component as any).confirmImport();
+      const approved = emit.calls.mostRecent().args[0].entriesToImport[0];
+      expect(Object.hasOwn(approved, 'originalDescription')).toBeFalse();
+      expect(Object.hasOwn(approved, 'originalNormalizedDescription')).toBeFalse();
+    });
+
+    it('retains drafts through discard/restore and clears them for the next review', () => {
+      const ready = buildParsedEntry();
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      (component as any).editDescription(ready, 'Personalizada');
+      (component as any).removeFromReady(ready);
+      (component as any).restoreFromDiscarded(ready);
+      expect((component as any).reviewDescription(ready)).toBe('Personalizada');
+
+      fixture.componentRef.setInput('mergeResult', buildMergeResult({ readyToImport: [ready] }));
+      fixture.detectChanges();
+      expect((component as any).reviewDescription(ready)).toBe(ready.description);
+    });
+
+    it('can clear a description without losing the original text', () => {
+      const ready = buildParsedEntry();
+      setupComponent(buildMergeResult({ readyToImport: [ready] }));
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+      (component as any).editDescription(ready, '   ');
+      (component as any).confirmImport();
+      const imported = emitSpy.calls.mostRecent().args[0].entriesToImport[0];
+      expect(imported.description).toBe('');
+      expect(imported.originalDescription).toBe(ready.description);
+    });
+
+    it('renames included self-transfers while keeping ignored ones out of the import', () => {
+      const included = buildSelfTransferEntry(buildParsedEntry(), false);
+      const ignored = buildSelfTransferEntry(buildParsedEntry());
+      setupComponent(buildMergeResult({
+        readyToImport: [included.entry, ignored.entry],
+        selfTransfers: [included, ignored],
+      }));
+      const emitSpy = spyOn(component.importConfirmed, 'emit');
+      (component as any).editDescription(included.entry, 'Entre mis cuentas');
+      (component as any).confirmImport();
+      const entries = emitSpy.calls.mostRecent().args[0].entriesToImport;
+      expect(entries.length).toBe(1);
+      expect(entries[0].description).toBe('Entre mis cuentas');
+      expect(entries[0].originalDescription).toBe(included.entry.description);
+    });
+
     it('emits importConfirmed with the current readyToImport entries', () => {
       const ready = buildParsedEntry({ description: 'Import me' });
       setupComponent(buildMergeResult({ readyToImport: [ready] }));
@@ -607,6 +748,8 @@ describe('ImportReviewModalComponent', () => {
 
       const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
       expect(payload.entriesToImport[0].description).toBe('Supermercado Lider (29/05)');
+      expect(Object.hasOwn(payload.entriesToImport[0], 'originalDescription')).toBeFalse();
+      expect(Object.hasOwn(payload.entriesToImport[0], 'originalNormalizedDescription')).toBeFalse();
     });
 
     it('does not mutate the original ready entry when applying the accounting override', () => {
@@ -624,6 +767,41 @@ describe('ImportReviewModalComponent', () => {
       expect(payload.entriesToImport[0]).not.toBe(ready);
       expect(ready.date).toBe('2026-05-29T04:00:00.000Z');
       expect(ready.description).toBe('Original');
+    });
+  });
+
+  describe('description editor', () => {
+    it('prefills the normalized description and saves only the confirmed edit', async () => {
+      const entry = buildParsedEntry({ description: 'TUU* LARRABIATA', originalDescription: 'TUU* LARRABIATA' });
+      setupComponent(buildMergeResult({ readyToImport: [entry] }));
+      descriptionAlert.onDidDismiss.and.resolveTo({
+        role: 'confirm', data: { values: { description: '  Almuerzo  ' } },
+      });
+      await (component as any).promptDescriptionEdit(entry);
+
+      const options = alertController.create.calls.mostRecent().args[0]!;
+      expect(options.inputs![0].value).toBe('TUU* LARRABIATA');
+      expect(options.subHeader).toBe('Original: TUU* LARRABIATA');
+      expect((component as any).reviewDescription(entry)).toBe('Almuerzo');
+      expect(entry.description).toBe('TUU* LARRABIATA');
+      expect(entry.originalDescription).toBe('TUU* LARRABIATA');
+      await (component as any).promptDescriptionEdit(entry);
+      expect(alertController.create.calls.mostRecent().args[0]!.subHeader).toBe('Original: TUU* LARRABIATA');
+      expect(alertController.create.calls.mostRecent().args[0]!.inputs![0].value).toBe('Almuerzo');
+    });
+
+    it('preserves the previous draft when cancelled or when dismissal has no value', async () => {
+      const entry = buildParsedEntry();
+      setupComponent(buildMergeResult({ readyToImport: [entry] }));
+      (component as any).editDescription(entry, 'Anterior');
+      descriptionAlert.onDidDismiss.and.resolveTo({
+        role: 'cancel', data: { values: { description: 'No guardar' } },
+      });
+      await (component as any).promptDescriptionEdit(entry);
+      expect((component as any).reviewDescription(entry)).toBe('Anterior');
+      descriptionAlert.onDidDismiss.and.resolveTo({ role: 'confirm' });
+      await (component as any).promptDescriptionEdit(entry);
+      expect((component as any).reviewDescription(entry)).toBe('Anterior');
     });
   });
 
@@ -808,8 +986,8 @@ describe('ImportReviewModalComponent', () => {
       (component as any).confirmImport();
 
       const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
-      expect(payload.entriesToImport).toContain(normalEntry);
-      expect(payload.entriesToImport).not.toContain(stEntry);
+      expect(payload.entriesToImport).toContain(jasmine.objectContaining(normalEntry));
+      expect(payload.entriesToImport).not.toContain(jasmine.objectContaining(stEntry));
     });
 
     it('includes self-transfer entries that are not ignored', () => {
@@ -821,7 +999,7 @@ describe('ImportReviewModalComponent', () => {
       (component as any).confirmImport();
 
       const payload = emitSpy.calls.mostRecent().args[0] as ImportConfirmation;
-      expect(payload.entriesToImport).toContain(stEntry);
+      expect(payload.entriesToImport).toContain(jasmine.objectContaining(stEntry));
     });
   });
 

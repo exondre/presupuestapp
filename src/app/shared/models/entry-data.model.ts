@@ -17,6 +17,8 @@ export interface EntryData {
   date: string;
   type: EntryType;
   description?: string;
+  /** Original normalized description, saved only when renamed during import review. */
+  originalDescription?: string;
   updatedAt?: string;
   recurrence?: EntryRecurrence;
   idempotencyInfo?: IdempotencyInfo[];
@@ -34,9 +36,24 @@ export type EntryCreation = Omit<EntryData, 'id' | 'recurrence'> & {
  */
 export interface EntryUpdatePayload {
   id: string;
-  amount: number;
-  date: string;
-  description?: string;
+  amount?: number;
+  date?: string;
+  description?: string | null;
+}
+
+export type EntryScope = 'single' | 'future' | 'series';
+
+export type EntryChanges = Omit<EntryUpdatePayload, 'id'> & { type?: EntryType };
+
+/** Shared defaults and partial value changes, independent of actual occurrences. */
+export interface EntryValueSchedule {
+  revision: string;
+  baseline: { amount: number; description: string | null };
+  changes: Array<{
+    fromOccurrenceIndex: number;
+    amount?: number;
+    description?: string | null;
+  }>;
 }
 
 /**
@@ -72,6 +89,7 @@ export interface EntryRecurrence extends EntryRecurrenceCreation {
   anchorDate: string;
   occurrenceIndex: number;
   excludedOccurrences?: number[];
+  valueSchedule?: EntryValueSchedule;
 }
 
 export interface IdempotencyInfo {

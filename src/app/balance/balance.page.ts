@@ -5,7 +5,7 @@ import { IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardS
 import { addIcons } from 'ionicons';
 import { addOutline, chevronBackOutline, informationCircleOutline, searchOutline, walletOutline } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
-import { EntryCreation, EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
+import { EntryCreation, EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryActionService } from '../shared/services/entry-action.service';
 import { EntryService } from '../shared/services/entry.service';
 import { resolveInstallmentDisplayDetailsFromEntry } from '../shared/utils/recurrence-installment-display.util';
@@ -323,19 +323,6 @@ export class BalancePage {
    */
   protected handleEntrySaved(entry: EntryCreation): void {
     this.entryService.addEntry(entry);
-  }
-
-  /**
-   * Receives the data emitted when an entry has been edited.
-   *
-   * @param payload Entry data modifications captured through the modal.
-   */
-  protected handleEntryUpdated(payload: EntryUpdatePayload): void {
-    this.entryService.updateEntry(payload.id, {
-      amount: payload.amount,
-      date: payload.date,
-      description: payload.description,
-    });
   }
 
   /**

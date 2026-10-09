@@ -842,23 +842,6 @@ describe('BalancePage', () => {
       expect(entryServiceMock.addEntry).toHaveBeenCalledWith(newEntry);
     });
 
-    it('should handle entries updated through modal', () => {
-      const payload = {
-        id: 'e1',
-        amount: 7000,
-        date: '2026-03-22T10:00:00.000Z',
-        description: 'Updated',
-      };
-
-      (component as any).handleEntryUpdated(payload);
-
-      expect(entryServiceMock.updateEntry).toHaveBeenCalledWith('e1', {
-        amount: 7000,
-        date: '2026-03-22T10:00:00.000Z',
-        description: 'Updated',
-      });
-    });
-
     it('should navigate back when handleNavigateBack is called', () => {
       const navController = TestBed.inject(NavController);
 

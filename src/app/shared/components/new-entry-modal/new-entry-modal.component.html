@@ -121,7 +121,7 @@
             <ion-button type="button" fill="clear" color="medium" (click)="close()">
               Cancelar
             </ion-button>
-            <ion-button type="submit" [disabled]="form.invalid">
+            <ion-button type="submit" [disabled]="form.invalid || isSaving">
               Guardar
             </ion-button>
           </div>
