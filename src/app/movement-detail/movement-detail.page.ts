@@ -30,7 +30,7 @@ import {
   trashOutline,
 } from 'ionicons/icons';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
-import { EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
+import { EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryActionService } from '../shared/services/entry-action.service';
 import { EntryService } from '../shared/services/entry.service';
 import {
@@ -162,19 +162,6 @@ export class MovementDetailPage {
     }
 
     modal.openForEdit(entry);
-  }
-
-  /**
-   * Receives the data emitted when an entry has been edited.
-   *
-   * @param payload Entry data modifications captured through the modal.
-   */
-  protected handleEntryUpdated(payload: EntryUpdatePayload): void {
-    this.entryService.updateEntry(payload.id, {
-      amount: payload.amount,
-      date: payload.date,
-      description: payload.description,
-    });
   }
 
   /**

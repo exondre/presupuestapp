@@ -612,16 +612,17 @@ describe('EntryService', () => {
       expect(updated!.updatedAt).toBeDefined();
     });
 
-    it('preserves recurrence from currentEntry, ignoring updates.recurrence', () => {
+    it('preserves recurrence identity and captures legacy defaults before editing', () => {
       const rec = buildRecurrence();
       service.importEntries([
         buildEntry({ id: 'upd-rec', recurrence: rec }),
       ]);
-      // Even if updates tries to set recurrence to undefined (it is stripped)
       service.updateEntry('upd-rec', { amount: 9999 });
       const entries = service.getEntriesSnapshot();
       const updated = entries.find((e) => e.id === 'upd-rec');
-      expect(updated!.recurrence).toEqual(rec);
+      expect(updated!.recurrence).toEqual({ ...rec, valueSchedule: jasmine.objectContaining({
+        baseline: { amount: 1000, description: null },
+      }) });
     });
   });
 

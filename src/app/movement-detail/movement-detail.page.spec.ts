@@ -1,17 +1,16 @@
-import { Component, output, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { NavController, provideIonicAngular } from '@ionic/angular/standalone';
 import { of } from 'rxjs';
 import { NewEntryModalComponent } from '../shared/components/new-entry-modal/new-entry-modal.component';
-import { EntryData, EntryType, EntryUpdatePayload } from '../shared/models/entry-data.model';
+import { EntryData, EntryType } from '../shared/models/entry-data.model';
 import { EntryActionService } from '../shared/services/entry-action.service';
 import { EntryService } from '../shared/services/entry.service';
 import { MovementDetailPage } from './movement-detail.page';
 
 @Component({ selector: 'app-new-entry-modal', template: '' })
 class MockNewEntryModalComponent {
-  readonly entryUpdated = output<EntryUpdatePayload>();
 }
 
 class EntryServiceMock {
@@ -100,24 +99,6 @@ describe('MovementDetailPage', () => {
     fixture.detectChanges();
 
     expect((component as any).detail()).toBeNull();
-  });
-
-  it('should update entry from modal payload', () => {
-    const payload: EntryUpdatePayload = {
-      id: 'entry-id',
-      amount: 3000,
-      date: '2026-01-16T10:00:00.000Z',
-      description: 'Updated',
-    };
-    fixture.detectChanges();
-
-    (component as any).handleEntryUpdated(payload);
-
-    expect(entryServiceMock.updateEntry).toHaveBeenCalledWith('entry-id', {
-      amount: 3000,
-      date: '2026-01-16T10:00:00.000Z',
-      description: 'Updated',
-    });
   });
 
   it('should delegate deletion', async () => {

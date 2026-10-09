@@ -1,3 +1,4 @@
+import { resolveRecurrenceValues } from './recurrence-values.util';
 import { EntryData, EntryType } from '../models/entry-data.model';
 import { resolveInstallmentDisplayDetailsFromEntry } from './recurrence-installment-display.util';
 
@@ -277,8 +278,7 @@ function categorizeEntry(entry: EntryData, slot: TrendMonthData): void {
 /**
  * Projects installment amounts into future month slots from recurrence metadata.
  *
- * Groups entries by recurrenceId, finds the latest occurrence for each,
- * and projects remaining occurrences into future months.
+ * Uses the same effective values and actual exceptions as the month detail.
  *
  * @param allEntries All entries to scan for installment recurrences.
  * @param months The month slots to update with projections.
@@ -289,71 +289,12 @@ function projectFutureInstallments(
   months: TrendMonthData[],
   currentKey: string,
 ): void {
-  // Group installment entries by recurrenceId
-  const groups = new Map<string, EntryData>();
-
-  for (const entry of allEntries) {
-    if (
-      entry.type !== EntryType.EXPENSE ||
-      !entry.recurrence ||
-      entry.recurrence.frequency !== 'monthly' ||
-      entry.recurrence.termination.mode !== 'occurrences'
-    ) {
-      continue;
-    }
-
-    const { recurrenceId, occurrenceIndex } = entry.recurrence;
-    const existing = groups.get(recurrenceId);
-    if (!existing || occurrenceIndex > existing.recurrence!.occurrenceIndex) {
-      groups.set(recurrenceId, entry);
-    }
-  }
-
-  // Project remaining occurrences for each group
-  for (const [, entry] of groups) {
-    projectEntryOccurrences(entry, months, currentKey);
+  for (const month of months) {
+    if (month.monthKey <= currentKey) { continue; }
+    month.installmentExpense = projectFutureInstallmentEntries(allEntries, month.monthKey)
+      .reduce((total, entry) => total + entry.amount, 0);
   }
 }
-
-/**
- * Projects remaining occurrences of a single installment entry into month slots.
- *
- * @param entry The installment entry to project.
- * @param months The month slots to update.
- * @param currentKey The current month key (projections are only for months after this).
- */
-function projectEntryOccurrences(
-  entry: EntryData,
-  months: TrendMonthData[],
-  currentKey: string,
-): void {
-  const recurrence = entry.recurrence!;
-  const total = (recurrence.termination as { mode: 'occurrences'; total: number }).total;
-  const anchorDate = new Date(recurrence.anchorDate);
-  if (Number.isNaN(anchorDate.getTime())) return;
-
-  const nextIndex = recurrence.occurrenceIndex + 1;
-  const excludedSet = new Set(recurrence.excludedOccurrences ?? []);
-
-  for (let i = nextIndex; i < total; i++) {
-    if (excludedSet.has(i)) continue;
-    const projectedDate = new Date(anchorDate);
-    projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i);
-    const projectedKey = buildMonthKey(projectedDate);
-
-    // Only project into future months (after current)
-    if (projectedKey <= currentKey) continue;
-
-    const slot = months.find((m) => m.monthKey === projectedKey);
-    if (slot) {
-      slot.installmentExpense += entry.amount;
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Month detail panel data
-// ---------------------------------------------------------------------------
 
 /**
  * A single item to display in the month detail panel.
@@ -579,22 +520,26 @@ export function projectFutureInstallmentEntries(
     const anchorDate = new Date(recurrence.anchorDate);
     if (Number.isNaN(anchorDate.getTime())) continue;
     const excludedSet = new Set(recurrence.excludedOccurrences ?? []);
+    const occurrences = new Map(allEntries
+      .filter((item) => item.recurrence?.recurrenceId === recurrence.recurrenceId)
+      .map((item) => [item.recurrence!.occurrenceIndex, item]));
 
     for (let i = 0; i < total; i++) {
       if (excludedSet.has(i)) continue;
-      const projectedDate = new Date(anchorDate);
-      projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i);
+      const actual = occurrences.get(i);
+      const projectedDate = actual ? new Date(actual.date) : new Date(anchorDate);
+      if (!actual) { projectedDate.setUTCMonth(projectedDate.getUTCMonth() + i); }
       const projectedKey = buildMonthKey(projectedDate);
 
       if (projectedKey === targetMonthKey) {
+        const values = actual ?? resolveRecurrenceValues(entry, i);
         const installmentNumber = i + 1;
         result.push({
-          description: (entry.description ?? '').trim() || 'Sin descripción',
-          amount: entry.amount,
+          description: (values.description ?? '').trim() || 'Sin descripción',
+          amount: values.amount,
           installmentLabel: `Cuota ${installmentNumber} de ${total}`,
-          isProjected: true,
+          isProjected: !actual,
         });
-        break;
       }
     }
   }
