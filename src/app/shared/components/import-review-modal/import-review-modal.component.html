@@ -27,10 +27,9 @@
       @if (selfTransfers().length > 0) {
         <section class="import-review-panel import-review-panel--self-transfers">
           <header class="import-review-panel__header">
-            <p class="import-review-panel__eyebrow">Revisión automática</p>
-            <h3 class="import-review-panel__title">Transferencias entre cuentas propias</h3>
+            <h3 class="import-review-panel__title">Movimientos entre cuentas propias</h3>
             <p class="import-review-panel__subtitle">
-              Estas transacciones parecen ser entre tus propias cuentas. Se ignoran por defecto para no afectar tu balance.
+              Estas transacciones parecen ser entre tus cuentas. Se ignoran para no afectar tu balance.
             </p>
           </header>
 
@@ -61,16 +60,17 @@
                         Editar
                       </ion-button>
                     }
-                    <ion-button
-                      size="small"
-                      fill="outline"
-                      [color]="st.ignored ? 'medium' : 'success'"
-                      (click)="toggleSelfTransfer(st)"
-                    >
-                      {{ st.ignored ? 'Ignorada' : 'Incluida' }}
-                    </ion-button>
                   </div>
                 </ion-label>
+                <ion-button
+                  slot="end"
+                  size="small"
+                  fill="outline"
+                  [color]="st.ignored ? 'medium' : 'success'"
+                  (click)="toggleSelfTransfer(st)"
+                >
+                  {{ st.ignored ? 'Ignorada' : 'Incluida' }}
+                </ion-button>
               </ion-item>
             }
           </ion-list>
